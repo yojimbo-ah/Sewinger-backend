@@ -10,6 +10,7 @@ productRouter.get('/normal' , products.getProducts);
 productRouter.get('/user/:valid' , verifyJWT , products.getUserProducts) ;
 productRouter.patch('/edit/:productId' , verifyJWT , upload.array("images" , 4) , products.updateUserProduct) ;
 productRouter.delete('/delete/:productId' , verifyJWT , products.productDelete) ;
+productRouter.get('/details/:productId' , products.getProductDetails) ;
 
 
 export default productRouter ;

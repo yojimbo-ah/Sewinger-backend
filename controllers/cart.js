@@ -171,9 +171,42 @@ const buyProduct = async (req , res , next) => {
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
     }
-
-
 }
 
-const cart = {deleteCart , deleteProductFromCart , buyProduct , updateItemQuantity } ;
+const getCart = async (req , res , next) => {
+    const userId = req.user.id ;
+
+    try {
+        const user = await User.findById(userId) ;
+
+        if (!user) {
+            return res.status(400).json({message : `couldnt find your user`}) ;
+        }
+
+        await user.populate('cart.items.productId') ;
+        const { cart } = user ;
+
+
+        const newCart = {
+            totalPrice : cart.totalPrice ,
+            items : cart.items.map(item => {
+                return {
+                    quantity : item.quantity ,
+                    name : item.productId.name ,
+                    description : item.productId.description ,
+                    price : item.productId.price ,
+                    creatorId : item.productId.creatorId ,
+                    images : item.productId.images ,
+                    categories : item.productId.categories
+                }
+            })
+        }
+
+        return res.status(200).json({ cart : newCart}) ;
+    } catch (error) {
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const cart = {deleteCart , deleteProductFromCart , buyProduct , updateItemQuantity , getCart } ;
 export  {cart} 

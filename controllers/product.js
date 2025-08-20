@@ -135,8 +135,9 @@ const getUserProducts = async (req , res , next) => {
 
 const updateUserProduct = async (req , res , next) => {
     console.log('am about to update my product') ;
-    console.log(req.body)
-    console.log(req.files)
+    console.log(req.body) ;
+    console.log(req.files) ;
+
     const productId = req.params.productId ;
     const userId = req.user.id ;
     const productName = req.body.name.trim() ;
@@ -224,6 +225,9 @@ const updateUserProduct = async (req , res , next) => {
         if (status) {
             return res.status(400).json({message : 'error validating' , errors : errors}) ;
         }
+
+        const oldImages = product.images ;
+
         product.name = productName ;
         product.description = productDescription ;
         product.price = productPrice ;
@@ -231,8 +235,9 @@ const updateUserProduct = async (req , res , next) => {
         product.type = type ;
         product.images = images ;
         product.categories = [...categories] ;
-        
-        images.forEach((image) => {
+        product.status = false ;
+
+        oldImages.forEach((image) => {
             const filePath = path.join(__dirname , '../images' , image) ;
             fs.unlink(filePath , (err) => {
                 if (err) {
@@ -283,5 +288,21 @@ const productDelete = async (req , res , next) => {
 
 }
 
-const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete } ;
+const getProductDetails = async (req , res , next) => {
+    const productId = req.params.productId ;
+    console.log(productId) ;
+
+    try {
+        const product = await Product.findById(productId) ;
+        if (!product) {
+            return res.status(400).json('Coudlnt find product with familair id') ;
+        }
+
+        return res.status(200).json({product : product}) ;
+    } catch (error) {
+        return res.status(500).json({message : 'Iternal server error , try again later'}) ;
+    }
+}
+
+const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete , getProductDetails} ;
 export default products ;

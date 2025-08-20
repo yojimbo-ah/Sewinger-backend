@@ -7,5 +7,6 @@ cartRouter.put('/buy/:productId' , verifyJWT ,cart.buyProduct) ;
 cartRouter.delete('/delete/:productId', verifyJWT , cart.deleteProductFromCart) ;
 cartRouter.delete('/delete' , verifyJWT , cart.deleteCart) ;
 cartRouter.patch('/update/:productId' , verifyJWT , cart.updateItemQuantity) ;
+cartRouter.get('/' , verifyJWT , cart.getCart) ;
 
 export default cartRouter ;
