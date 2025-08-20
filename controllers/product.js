@@ -290,7 +290,6 @@ const productDelete = async (req , res , next) => {
 
 const getProductDetails = async (req , res , next) => {
     const productId = req.params.productId ;
-    console.log(productId) ;
 
     try {
         const product = await Product.findById(productId) ;

@@ -19,6 +19,14 @@ const orderSchema = new Schema({
             quantity : {
                 type : Number ,
                 required : true
+            } ,
+            priceWhenBought : {
+                type : Number ,
+                required : true
+            } ,
+            name : {
+                type : String ,
+                required : true
             }
         }]
     }

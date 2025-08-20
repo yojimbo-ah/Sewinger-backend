@@ -197,7 +197,8 @@ const getCart = async (req , res , next) => {
                     price : item.productId.price ,
                     creatorId : item.productId.creatorId ,
                     images : item.productId.images ,
-                    categories : item.productId.categories
+                    categories : item.productId.categories ,
+                    productId : item.productId._id
                 }
             })
         }

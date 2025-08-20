@@ -4,12 +4,12 @@ import { fileURLToPath } from 'url';
 import { dirname} from 'path';
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import multer from "multer";
 
 // routes 
 import accountRouter from "./routes/account.js";
 import productRouter from "./routes/products.js";
 import cartRouter from "./routes/cart.js";
+import orderRouter from "./routes/order.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,6 +29,7 @@ app.use((req , res , next) => {
 app.use('/product' , productRouter) ;
 app.use('/account' , accountRouter);
 app.use('/cart' , cartRouter) ;
+app.use('/order' , orderRouter) ;
 
 
 
