@@ -26,14 +26,15 @@ const confirmJwt = async (req , res , next) => {
         if (err) {
             return res.status(400).json({message : 'invalid token' , valid : false}) ;
         }
-        const {email , userId , lastName , firstName} = decoded ;
+        const {email , userId , lastName , firstName , power} = decoded ;
         const data = {
             email ,
             id : userId ,
             name : {
                 lastName ,
                 firstName
-            }
+            } ,
+            power : power
         }
         return res.status(200).json({user : data , valid : true}) ;
 
@@ -167,7 +168,8 @@ const login = async (req , res , next) => {
                 email : email ,
                 userId : user._id.toString() ,
                 firstName : user.name.firstName ,
-                lastName : user.name.lastName
+                lastName : user.name.lastName ,
+                power : user.power
             }, 'topsecretcode' ,{expiresIn : '15d'}) ;
 
             transporter.sendMail({

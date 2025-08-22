@@ -7,7 +7,12 @@ const userWaitSellerConf = new Schema ({
         ref : 'User'
     } ,
     description : {
-        
+        type : String ,
+        required : true
+    } ,
+    hImprove : {
+        type : String ,
+        required : true
     }
 })
 

@@ -1,6 +1,12 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
+import path from 'path' 
+import { fileURLToPath } from "url";
+
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 const putOrder = async (req , res , next) => {
@@ -47,19 +53,90 @@ const putOrder = async (req , res , next) => {
 }
 
 const getOrderInvoice = async (req , res , next) => {
-    const doc = new PDFDocument();
+    const userId = req.user.id ;
+    const orderId = req.params.orderId ;
+    console.log('am herer')
+    try {
+        const user = await User.findById(userId) ;
+        console.log(user) ;
+        if (!user) {
+            console.log(1)
+            return res.status(400).json({message : 'Couldnt find user with familair id'}) ;
+        }
+        const order = await Order.findById(orderId) ;
+        console.log(2)
+        if (!order) {
+            return res.status(400).json({message : 'Couldnt find order with similair id'}) ;
+        }
+        if (order.ownerId.toString() !== user._id.toString()) {
+            return res.status(400).json({message : 'You cant get the invoice since you dont own the order'}) ;
+        }
 
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "inline; filename=invoice.pdf")
+        
+        const doc = new PDFDocument();
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="document.pdf"');
+        doc.pipe(res);
 
-    doc.pipe(res);
+        doc.fontSize(24).text('Invoice', { underline: true });
+        doc.moveDown();
+        doc.fontSize(10).text(`Name: ${user.name.lastName} ${user.name.firstName}`);
+        doc.moveDown();
+        doc.fontSize(10).text(`Order id: ${order._id}`);
+        doc.moveDown();
+        doc.fontSize(10).text(`Today's date: ${new Date().toLocaleDateString()}`);
+        doc.moveDown(3);
 
-    doc.fontSize(25).text("Invoice Example", { align: "center" });
-    doc.moveDown();
-    doc.text("Customer: Ahmed Ahmed");
-    doc.text("Total: $120.50");
+        const itemNameX = 50;
+        const quantityX = 200;
+        const priceX = 300;
+        const totalX = 400;
 
-    doc.end();
+        doc.font('Helvetica-Bold');
+        const headerY = doc.y; 
+        doc.text('Item Name', itemNameX, headerY);
+        doc.text('Quantity', quantityX, headerY);
+        doc.text('Price', priceX, headerY);
+        doc.text('Total', totalX, headerY);
+
+        doc.moveDown();
+        const lineY = doc.y;
+        doc.moveTo(itemNameX, lineY)
+        .lineTo(totalX + 50, lineY)
+        .stroke();
+
+        doc.moveDown();
+
+        doc.font('Helvetica');
+        order.order.items.forEach(product => {
+            const total = product.priceWhenBought * product.quantity;
+            const currentY = doc.y; 
+            
+            doc.text(`${product.name}`, itemNameX, currentY);
+            doc.text(`${product.quantity}`, quantityX, currentY);
+            doc.text(`$${product.priceWhenBought.toFixed(2)}`, priceX, currentY);
+            doc.text(`$${total.toFixed(2)}`, totalX, currentY);
+            
+            doc.moveDown(1.5); 
+        });
+
+        doc.moveDown(2);
+        doc.moveTo(itemNameX, doc.y)
+        .lineTo(totalX + 50, doc.y)
+        .stroke();
+
+        doc.moveDown();
+        doc.font('Helvetica-Bold');
+        doc.fontSize(12);
+        doc.text(`Total Price of the Order: $${order.order.totalPrice.toFixed(2)}`, itemNameX);
+
+        doc.end();
+        
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+
 }
 
 
@@ -85,6 +162,8 @@ const deleteOrder = async (req , res , next) => {
     const userId = req.user.id ;
     const orderId = req.params.orderId ;
 
+    console.log('i reached here') ;
+ 
     try {
         const user = await User.findById(userId) ;
         if (!user) {

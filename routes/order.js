@@ -5,7 +5,7 @@ const orderRouter = express.Router() ;
 
 orderRouter.put('/create' , verifyJWT , order.putOrder) ;
 orderRouter.get('/' , verifyJWT , order.getOrders ) ;
-orderRouter.get('/invoice/:orderId' , order.getOrderInvoice) ;
+orderRouter.get('/invoice/:orderId' , verifyJWT ,order.getOrderInvoice) ;
 orderRouter.delete('/delete/:orderId' , verifyJWT , order.deleteOrder) ;
 
 export default orderRouter ;
