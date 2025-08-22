@@ -5,6 +5,8 @@ const updateItemQuantity = async (req , res , next) => {
     const userId = req.user.id ;
     const productId = req.params.productId ;
     const quantity = Math.floor(req.body.quantity) ;
+
+    console.log('am hereeeeeeeeeeeeeeeeeeeeeeee')
     try {
 
         const user = await User.findById(userId) ;
