@@ -10,10 +10,15 @@ const userWaitSellerConf = new Schema ({
         type : String ,
         required : true
     } ,
-    hImprove : {
+    reason : {
         type : String ,
         required : true
+    } ,
+    ideas : {
+        type : String ,
+        requierd : true
     }
 })
 
 const UserWaitSellerConf = mongoose.model('UserWaitSellerConf' , userWaitSellerConf) ;
+export default UserWaitSellerConf ;
