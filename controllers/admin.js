@@ -24,8 +24,18 @@ const adminGetPendingProducts = async (req , res , next) => {
             return res.status(400).json({message : 'This user is not allowed as a admin'})
         }
 
-        const products = await Product.find({valid : false}) ;
-        return res.status(200).json({products : products}) ;
+        const products = await Product.find({valid : false}).populate('creatorId') ;
+        const sentProducts = products.map(product => {
+            return {
+                ...product._doc ,
+                creatorId : {
+                    email : product.creatorId.email ,
+                    name : product.creatorId.name ,
+                    userId : product.creatorId._id
+                }
+            }
+        })
+        return res.status(200).json({products : sentProducts}) ;
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error'}) ;
     }
@@ -33,7 +43,6 @@ const adminGetPendingProducts = async (req , res , next) => {
 
 const adminGetSellerRequests = async (req , res , next) => {
     const adminId = req.user.id ;
-
     try {
         const admin = await User.findById(adminId) ;
         if (!admin) {
@@ -42,11 +51,21 @@ const adminGetSellerRequests = async (req , res , next) => {
         if (admin.power !== 'admin') {
             return res.status(400).json({message : 'This user is now allowed as admin'}) ;
         }
-        const requests = await UserWaitSellerConf.find() ;
-
-        return res.status(200).json({requests : requests}) ;
+        const requests = await UserWaitSellerConf.find().populate('userId') ;
+        const sellerRequests = requests.map(request => {
+            return {
+                userId : request.userId._id ,
+                description : request.description ,
+                createdAt : request.createdAt ,
+                userName : {
+                    firstName : request.userId.name.firstName ,
+                    lastName : request.userId.name.lastName
+                }
+            }
+        })
+        return res.status(200).json({requests : sellerRequests}) ;
     } catch (error) {
-
+        return res.status(500).json({message : 'Iternal server error'}) ;
     }
 
 }
@@ -85,6 +104,31 @@ const adminPatchProductStatus = async (req , res , next) => {
     }
 }
 
+const adminDeleteProduct = async (req , res , next) => {
+    const adminId = req.user.id ;
+    const productId = req.params.productId ;
+
+
+    try {
+        const admin = await User.findById(adminId) ;
+        if (!admin) {
+            return res.status(400).json({message : 'Couldnt find user with similair info'}) ;
+        }
+        if (admin.power !== 'admin') {
+            return res.status(400).json({message : 'This user is not allowed as admin'}) ;
+        }
+        const product = await Product.findById(productId) ;
+        if (!product) {
+            return res.status(400).json({message : 'Couldnt find product with similair info'}) ;
+        }
+
+        await product.deleteOne() ;
+        return res.status(200).json({message : 'Product deleted succcesffuly'}) ;
+    } catch (error) {
+
+    }
+}
+
 const adminPatchUserPower = async (req , res , next) => {
     const adminId = req.user.id ;
     const userId = req.params.userId ;
@@ -98,12 +142,17 @@ const adminPatchUserPower = async (req , res , next) => {
             return res.status(400).json({message : 'This user is not allowed as admin'}) ;
         }
         const user = await User.findById(userId) ;
+        const request = await UserWaitSellerConf.find({userId : userId}) ;
 
         if (!user) {
             return res.status(400).json({message : 'Couldnt find the user'}) ;
         }
+        if (!request) {
+            return res.status(500).json({message : 'Error happened try again'}) ;
+        }
 
         user.power = 'seller' ;
+        await request.deleteOne()
         await user.save() ;
             transporter.sendMail({
             from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
@@ -118,6 +167,6 @@ const adminPatchUserPower = async (req , res , next) => {
     }
 }
 
-const admin = {adminGetPendingProducts , adminPatchProductStatus , adminPatchUserPower , adminGetSellerRequests} ;
+const admin = {adminGetPendingProducts , adminPatchProductStatus , adminPatchUserPower , adminGetSellerRequests , adminDeleteProduct} ;
 
 export default admin ;

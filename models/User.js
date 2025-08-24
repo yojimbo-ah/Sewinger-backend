@@ -51,9 +51,8 @@ const userSchema = new Schema({
         type : Types.ObjectId ,
         required : true ,
         ref :'Order'
-    }]
-
-})
+    }] 
+} , {timestamps : true})
 
 
 const User = mongoose.model('User' , userSchema)

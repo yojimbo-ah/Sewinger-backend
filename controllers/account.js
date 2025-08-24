@@ -6,6 +6,7 @@ import bcrypt from 'bcrypt'
 import {createTransport} from 'nodemailer'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
+import UserWaitSellerConf from '../models/UserWaitSellerConf.js';
 
 const transporter = createTransport({
     service : 'gmail' ,
@@ -26,7 +27,7 @@ const confirmJwt = async (req , res , next) => {
         if (err) {
             return res.status(400).json({message : 'invalid token' , valid : false}) ;
         }
-        const {email , userId , lastName , firstName , power} = decoded ;
+        const {email , userId , lastName , firstName , power , sentRequest} = decoded ;
         const data = {
             email ,
             id : userId ,
@@ -34,7 +35,8 @@ const confirmJwt = async (req , res , next) => {
                 lastName ,
                 firstName
             } ,
-            power : power
+            power : power ,
+            sentRequest : sentRequest
         }
         return res.status(200).json({user : data , valid : true}) ;
 
@@ -161,6 +163,12 @@ const login = async (req , res , next) => {
             errors.email = 'cant find a user with the same email' ;
             return res.status(400).json({errors : errors}) ;
         } 
+        const request = await UserWaitSellerConf.findOne({userId : user._id}) ;
+        let reqt = false ;
+        if (request) {
+            reqt = true ;
+        }
+
         const hashedPassword = user.password ;
         const result = await bcrypt.compare(password , hashedPassword) ;
         if (result) {
@@ -169,7 +177,8 @@ const login = async (req , res , next) => {
                 userId : user._id.toString() ,
                 firstName : user.name.firstName ,
                 lastName : user.name.lastName ,
-                power : user.power
+                power : user.power ,
+                sentRequest : reqt
             }, 'topsecretcode' ,{expiresIn : '15d'}) ;
 
             transporter.sendMail({
@@ -201,7 +210,7 @@ const signup = async (req , res , next) => {
     const firstName = name.firstName ;
     const lastName = name.lastName
     const confirmPassword = req.body.confirmPassword ;
-
+    console.log('sign up')
     let errors = {
         password : undefined ,
         confirmPassword : undefined ,
@@ -318,6 +327,48 @@ const SignupVer = async (req , res , next) => {
         return res.status(500).json({message : 'Eternal server error'})
     }
 }
-const account = {login , signup , resetAccount , resetAccountVer , SignupVer , confirmJwt} ;
+
+const putUserWaitSellerRequest = async (req , res , next) => {
+    const userId = req.user.id ;
+    
+    const description  = req.body.description ;
+    console.log(description)
+    console.log('am here')
+
+    try {
+
+        if (!validator.isLength(description , {min : 50 , max : 500})) {
+            return res.status(400).json({message : 'error happened' , error : {
+                description : 'the length must be between 50 and 500 characters'
+            }})
+        }
+
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with same informations'}) ;
+        }
+        const request = await UserWaitSellerConf.findOne({userId : userId}) ;
+
+        if (request) {
+            return res.status(400).json({message : 'You already have a request , it still pending for admin confimation'}) ;
+        }
+
+        const pendingRequest = new UserWaitSellerConf({
+            description : description ,
+            userId : userId
+        })
+
+        await user.save() ;
+        await pendingRequest.save() ;
+        return res.status(200).json({message : 'request has been sent succussfully'})
+
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+
+}
+
+const account = {login , signup , resetAccount , resetAccountVer , SignupVer , confirmJwt , putUserWaitSellerRequest} ;
 
 export default account ;

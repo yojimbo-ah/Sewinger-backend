@@ -1,5 +1,6 @@
 import express from "express";
 import account from "../controllers/account.js";
+import { verifyJWT } from "../middleware/verifyJWT.js";
 
 const accountRouter = express.Router() ;
 
@@ -9,6 +10,7 @@ accountRouter.put('/signup/:token' , account.SignupVer);
 accountRouter.post('/forgot' , account.resetAccount);
 accountRouter.patch('/forgot/:token' , account.resetAccountVer);
 accountRouter.post('/jwtVer' , account.confirmJwt);
+accountRouter.put('/request/seller' , verifyJWT , account.putUserWaitSellerRequest)
 
 
 export default accountRouter ;

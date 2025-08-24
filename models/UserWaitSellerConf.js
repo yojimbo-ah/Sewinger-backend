@@ -9,16 +9,8 @@ const userWaitSellerConf = new Schema ({
     description : {
         type : String ,
         required : true
-    } ,
-    reason : {
-        type : String ,
-        required : true
-    } ,
-    ideas : {
-        type : String ,
-        requierd : true
     }
-})
+} , {timestamps : true})
 
 const UserWaitSellerConf = mongoose.model('UserWaitSellerConf' , userWaitSellerConf) ;
 export default UserWaitSellerConf ;

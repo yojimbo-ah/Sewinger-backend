@@ -8,7 +8,7 @@ adminRouter.patch('/user/power/:userId' , verifyJWT , admin.adminPatchUserPower)
 adminRouter.patch('/product/:productId' , verifyJWT , admin.adminPatchProductStatus) ;
 adminRouter.get('/seller/request' , verifyJWT , admin.adminGetSellerRequests) ;
 adminRouter.get('/product/request' , verifyJWT , admin.adminGetPendingProducts) ;
-
+adminRouter.delete('/product/:productId' , verifyJWT , admin.adminDeleteProduct) ;
 
 
 
