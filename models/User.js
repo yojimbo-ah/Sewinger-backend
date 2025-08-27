@@ -51,7 +51,38 @@ const userSchema = new Schema({
         type : Types.ObjectId ,
         required : true ,
         ref :'Order'
-    }] 
+    }]  ,
+    friends : [{
+        _id : false ,
+        friendId : {
+            type : Types.ObjectId ,
+            required : true ,
+            ref : 'User' 
+        } ,
+        addedAt : {
+            type : Date ,
+            default : Date.now ,
+            required : true
+        }
+    }] ,
+    friendsRequests : [{
+        _id : false ,
+        friendId : {
+            type : Types.ObjectId ,
+            required : true ,
+            ref : 'User'
+        } ,
+        sentAt : {
+            type : Date ,
+            default : Date.now ,
+            required : true
+        } ,
+        sentBy : {
+            type : String ,
+            required : true ,
+            enum : ['me' , 'friend']
+        }
+    }]
 } , {timestamps : true})
 
 

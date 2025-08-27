@@ -313,7 +313,7 @@ const SignupVer = async (req , res , next) => {
                     firstName : awaitingAccount.name.firstName ,
                     lastName : awaitingAccount.name.lastName
                 } ,
-                password : awaitingAccount.password ,
+                password : awaitingAccount.password 
                 
             })
             await user.save() ;

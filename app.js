@@ -10,6 +10,8 @@ import productRouter from "./routes/products.js";
 import cartRouter from "./routes/cart.js";
 import orderRouter from "./routes/order.js";
 import adminRouter from "./routes/admin.js";
+import chatRouter from "./routes/chat.js";
+import friendRouter from "./routes/friend.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,6 +33,8 @@ app.use('/account' , accountRouter);
 app.use('/cart' , cartRouter) ;
 app.use('/order' , orderRouter) ;
 app.use('/admin' , adminRouter) ;
+app.use('/chat' , chatRouter) ;
+app.use('/friend' , friendRouter) ;
 
 
 

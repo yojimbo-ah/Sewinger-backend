@@ -83,6 +83,13 @@ const PostProduct = async (req , res , next) => {
     if (status) {
         return res.status(400).json({message : 'error validating' , errors : errors}) ;
     }
+    // what does valid do here , it works as variable if the user was admin then the product is valid directly else is
+    // not and needs admin verification
+    let valid = false ;
+
+    if (user.power === 'admin') {
+        valid = true ;
+    }
 
     const product = new Product({
         name : name ,
@@ -92,7 +99,8 @@ const PostProduct = async (req , res , next) => {
         images : images ,
         availbleItems : availbleItems ,
         categories : [...categories],
-        creatorId : user._id
+        creatorId : user._id ,
+        valid : valid
     })
 
     const createdProduct = await product.save() ;
@@ -134,9 +142,6 @@ const getUserProducts = async (req , res , next) => {
 }
 
 const updateUserProduct = async (req , res , next) => {
-    console.log('am about to update my product') ;
-    console.log(req.body) ;
-    console.log(req.files) ;
 
     const productId = req.params.productId ;
     const userId = req.user.id ;
@@ -228,6 +233,11 @@ const updateUserProduct = async (req , res , next) => {
 
         const oldImages = product.images ;
 
+        let productStatus = false ;
+
+        if (user.power === 'admin') {
+            productStatus = true ;
+        }
         product.name = productName ;
         product.description = productDescription ;
         product.price = productPrice ;
@@ -235,7 +245,7 @@ const updateUserProduct = async (req , res , next) => {
         product.type = type ;
         product.images = images ;
         product.categories = [...categories] ;
-        product.status = false ;
+        product.status = productStatus  ;
 
         oldImages.forEach((image) => {
             const filePath = path.join(__dirname , '../images' , image) ;
