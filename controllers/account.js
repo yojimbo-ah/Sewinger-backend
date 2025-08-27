@@ -3,19 +3,10 @@ import UserWaitConfirm from '../models/UserWaitConfirm.js';
 import { Reset } from '../models/Reset.js' ;
 import validator from 'validator'
 import bcrypt from 'bcrypt'
-import {createTransport} from 'nodemailer'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
 import UserWaitSellerConf from '../models/UserWaitSellerConf.js';
-
-const transporter = createTransport({
-    service : 'gmail' ,
-    auth : {
-        user : 'abbad.ahmed.gg@gmail.com' ,
-        pass : 'kzfstadzrocduaar'
-    } 
-})
-
+import transporter from '../service/emailTransporter.js';
 
 const confirmJwt = async (req , res , next) => {
     const authHeader = req.headers.authorization ;

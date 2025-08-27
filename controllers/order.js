@@ -3,7 +3,7 @@ import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
 import path from 'path' 
 import { fileURLToPath } from "url";
-
+import transporter from "../service/emailTransporter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,7 +44,12 @@ const putOrder = async (req , res , next) => {
         }
         await user.save() ;
         await order.save()
-
+        transporter.sendMail({
+            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            to : user.email ,
+            subject : 'Order added' ,
+            html : `<p>Order added under your name</p>`
+        })
         return res.status(200).json({message : 'order had been created'}) ;
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -162,8 +167,6 @@ const deleteOrder = async (req , res , next) => {
     const userId = req.user.id ;
     const orderId = req.params.orderId ;
 
-    console.log('i reached here') ;
- 
     try {
         const user = await User.findById(userId) ;
         if (!user) {

@@ -1,12 +1,12 @@
 import Product from "../models/Product.js";
 import User from "../models/User.js" ;
+import transporter from "../service/emailTransporter.js";
 
 const updateItemQuantity = async (req , res , next) => {
     const userId = req.user.id ;
     const productId = req.params.productId ;
     const quantity = Math.floor(req.body.quantity) ;
 
-    console.log('am hereeeeeeeeeeeeeeeeeeeeeeee')
     try {
 
         const user = await User.findById(userId) ;
@@ -50,9 +50,8 @@ const updateItemQuantity = async (req , res , next) => {
         await user.save() ;
         return res.status(200).json({message : `product with id : ${productId}`}) ;
     } catch (error) {
-
+        return res.status(400).json({message : 'Iternal server error'}) ;
     }
-    const user = await User.findById(userId) ;
 }
 
 const deleteCart = async (req , res , next) => {
@@ -79,6 +78,12 @@ const deleteCart = async (req , res , next) => {
         user.cart.items = [] ;
         user.cart.totalPrice = 0 ;
         await user.save() ;
+        transporter.sendMail({
+            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            to : user.email ,
+            subject : 'Cart reseted' ,
+            html : `<p>Your cart has been reseted</p>`
+        })
         return res.status(200).json({message : 'cart has been reseted'}) ;
     } catch (error) {
         return res.status(500).json({message : 'iternal sever error jjjj'}) ;

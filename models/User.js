@@ -42,10 +42,11 @@ const userSchema = new Schema({
             }
         }]
     } ,
-    power : {
+    power : { 
         type : String ,
         required : true ,
-        default : 'client'
+        default : 'client' ,
+        enum : ['admin' , 'client' , 'seller']
     }, 
     orders : [{
         type : Types.ObjectId ,

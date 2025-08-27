@@ -35,6 +35,7 @@ const productSchema = new Schema({
         required : true
     }  ,
     valid : {
+        // this field is for if the product is validated by the admin or not
         type : Boolean ,
         required : true ,
         default : false

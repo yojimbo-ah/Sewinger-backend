@@ -1,15 +1,7 @@
 import User from "../models/User.js"
 import Product from "../models/Product.js"
 import UserWaitSellerConf from "../models/UserWaitSellerConf.js"
-import { createTransport } from "nodemailer"
-
-const transporter = createTransport({
-    service : 'gmail' ,
-    auth : {
-        user : 'abbad.ahmed.gg@gmail.com' ,
-        pass : 'kzfstadzrocduaar'
-    } 
-})
+import transporter from "../service/emailTransporter.js"
 
 const adminGetPendingProducts = async (req , res , next) => {
     const userId = req.user.id ;
@@ -123,6 +115,12 @@ const adminDeleteProduct = async (req , res , next) => {
         }
 
         await product.deleteOne() ;
+        transporter.sendMail({
+            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            to : user.email ,
+            subject : 'Product deletion' ,
+            html : `<p>the product with ID : ${productId} , has been deleted by the admin : ${admin.name.lastName} ${admin.name.firstName}</p>`
+        })
         return res.status(200).json({message : 'Product deleted succcesffuly'}) ;
     } catch (error) {
 
