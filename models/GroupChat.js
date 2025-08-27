@@ -1,5 +1,8 @@
 import mongoose , { Schema , Types} from 'mongoose' ;
 
+//////////////////////////////////////////
+//STILL WORKING ON IT , MIGHT CHANGE IT///
+/////////////////////////////////////////
 
 const chatSchema = new Schema ({
     users : [{

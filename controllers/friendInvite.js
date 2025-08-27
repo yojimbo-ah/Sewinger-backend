@@ -1,12 +1,8 @@
 import User from "../models/User.js"
 import transporter from "../service/emailTransporter.js";
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// DONT FORGET TO FIX THE USERID AND ADDING THE VERIFY JWTTOKEN MIDDLEWARE , SINCE THIS VERSION IS ONLY FOR DEBUGGGING THE CODE //
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 const postFriendInvite = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
 
     try {
@@ -57,7 +53,7 @@ const postFriendInvite = async (req , res , next) => {
 }
 
 const deleteFriendInvite = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
 
     try {
@@ -107,7 +103,7 @@ const deleteFriendInvite = async (req , res , next) => {
 }
 
 const approveFriendInvite = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
     const approve = req.body.approve ;
 
@@ -201,7 +197,7 @@ const approveFriendInvite = async (req , res , next) => {
 }
 
 const deleteFriend = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
 
     try {
@@ -254,7 +250,7 @@ const deleteFriend = async (req , res , next) => {
 }
 
 const getUserFriends = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
 
     try {
         const user = await User.findById(userId).populate('friends.friendId') ;
@@ -281,7 +277,7 @@ const getUserFriends = async (req , res , next) => {
 }
 
 const getUserPendingFriends = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -313,7 +309,7 @@ const getUserPendingFriends = async (req , res , next) => {
 }
 
 const getUserFriendRequests = async (req , res , next ) => {
-    const userId = req.body.userId ;
+    const userId = req.user.id ;
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -337,7 +333,6 @@ const getUserFriendRequests = async (req , res , next ) => {
         })
         return res.status(200).json({friendsRequests : friendsRequests}) ;
     } catch (error) {
-        console.log(error) ;
         return res.status(400).json({message : 'Iternal server error'})
     }
 }

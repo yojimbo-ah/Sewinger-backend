@@ -1,5 +1,7 @@
 import mongoose , {Schema , Types} from "mongoose";
 
+// the main user Schema
+
 const userSchema = new Schema({
     name : {
         firstName : {

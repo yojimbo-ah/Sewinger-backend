@@ -1,5 +1,8 @@
 import mongoose , { Schema, Types} from 'mongoose' ;
 
+// the order Schema , it has a field priceWhenBought since the price must change after the user buys it 
+// and it shouldnt change the price since is already bought and it being shipped
+
 const orderSchema = new Schema({
     ownerId : {
         type : Types.ObjectId ,

@@ -1,5 +1,9 @@
 import mongoose , {Schema , Types} from "mongoose";
 
+//////////////////////////////////////////
+//STILL WORKING ON IT , MIGHT CHANGE IT///
+/////////////////////////////////////////
+
 const messageSchema = new Schema ({
     senderId : {
         type : Types.ObjectId ,

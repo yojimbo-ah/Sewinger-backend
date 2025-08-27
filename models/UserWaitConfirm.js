@@ -1,5 +1,8 @@
 import mongoose , {Types , Schema} from 'mongoose' ;
 
+// Schema for when user creates a product it doenst get saved a user directly it starts here 
+// a token is created and the user must access it to confirm the user , after that the account is created
+
 const userWaitConfirmSchema = new Schema({
     email : {
         type : String ,
