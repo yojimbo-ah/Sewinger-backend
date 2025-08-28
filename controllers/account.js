@@ -170,7 +170,7 @@ const login = async (req , res , next) => {
                 lastName : user.name.lastName ,
                 power : user.power ,
                 sentRequest : reqt
-            }, 'topsecretcode' ,{expiresIn : '15d'}) ;
+            }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
             transporter.sendMail({
                 from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,

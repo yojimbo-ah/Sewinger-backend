@@ -5,7 +5,9 @@ import { dirname} from 'path';
 import mongoose from "mongoose";
 import http from "http" ;
 import { initSocket } from "./socket.js";
+import dotenv from 'dotenv'
 
+dotenv.config() ;
 
 // routes 
 import accountRouter from "./routes/account.js";
@@ -46,7 +48,7 @@ app.use('/chat' , chatRouter) ;
 app.use('/friend' , friendRouter) ;
 
 
-mongoose.connect('mongodb+srv://abbadahmed:kKAls1NszXsiKXVR@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0')
+mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
     .then(result => {
         server.listen(3000 , () => {
             console.log('conneceted the server')

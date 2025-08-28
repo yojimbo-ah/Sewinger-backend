@@ -8,7 +8,7 @@ export const verifyJWT = async (req , res , next) => {
         return res.status(400).json({message : 'invalid jwt format'}) ;
     }
     const jwtToken = authHeader.split(' ')[1] ;
-    jwt.verify(jwtToken , 'topsecretcode' , (err , decoded) => {
+    jwt.verify(jwtToken , process.env.BCRYPT_CODE , (err , decoded) => {
         if (err) {
             return res.status(400).json({message : 'invalid token' , valid : false}) ;
         }
