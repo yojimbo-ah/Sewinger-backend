@@ -1,8 +1,11 @@
-import express from "express";
-import path from 'path'
+import express from "express" ;
+import path from 'path' ;
 import { fileURLToPath } from 'url';
 import { dirname} from 'path';
 import mongoose from "mongoose";
+import http from "http" ;
+import { initSocket } from "./socket.js";
+
 
 // routes 
 import accountRouter from "./routes/account.js";
@@ -18,9 +21,15 @@ const __dirname = dirname(__filename);
 
 const app = express() ;
 
+const server = http.createServer(app) ;
+initSocket(server)
+
 app.use(express.json()) ;
+
+// the images handling would be changed later , and it would be handled in the cloud (By external cloud) 
+
 app.use('/images', express.static(path.join(__dirname, 'images')));
-// CORS
+// CORS setup 
 app.use((req , res , next) => {
     res.setHeader('Access-Control-Allow-Origin' , '*')
     res.setHeader('Access-Control-Allow-Methods' , 'GET,POST,PUT,PATCH,DELETE')
@@ -37,11 +46,11 @@ app.use('/chat' , chatRouter) ;
 app.use('/friend' , friendRouter) ;
 
 
-
 mongoose.connect('mongodb+srv://abbadahmed:kKAls1NszXsiKXVR@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0')
     .then(result => {
-        console.log('connected to the dataBase') ;
-        app.listen(3000) ;
+        server.listen(3000 , () => {
+            console.log('conneceted the server')
+        }) ;
     })
     .catch(error => {
         console.log(error);

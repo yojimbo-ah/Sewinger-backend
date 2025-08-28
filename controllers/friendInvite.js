@@ -1,8 +1,10 @@
 import User from "../models/User.js"
 import transporter from "../service/emailTransporter.js";
+import Chat from "../models/Chat.js";
+
 
 const postFriendInvite = async (req , res , next) => {
-    const userId = req.user.id ;
+    const userId = req.body.userId ;
     const friendId = req.body.friendId ;
 
     try {
@@ -103,7 +105,7 @@ const deleteFriendInvite = async (req , res , next) => {
 }
 
 const approveFriendInvite = async (req , res , next) => {
-    const userId = req.user.id ;
+    const userId = req.body.userId ;
     const friendId = req.body.friendId ;
     const approve = req.body.approve ;
 
@@ -163,8 +165,17 @@ const approveFriendInvite = async (req , res , next) => {
             friend.friends.push({
                 friendId : userId
             })
+
+            // creating a new chat between the two since they are friends 
+
+            const newChat = new Chat ({
+                type : 'private' ,
+                users : [user._id , friend._id] ,
+                messages : []
+            })
             await user.save() ;
             await friend.save() ;
+            await newChat.save() ;
             
             transporter.sendMail({
                 from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
@@ -172,6 +183,7 @@ const approveFriendInvite = async (req , res , next) => {
                 subject : 'Approving friend request' ,
                 html : `<p>${user.name.firstName} ${friend.name.lastName} is now your friend</p>`
             })
+
             return res.status(200).json({message : 'Friend had been added'}) ;
         } else if (!approve && had1 && had2) {
             user.friendsRequests.splice(index1 , 1) ;
