@@ -4,10 +4,10 @@ import { verifyJWT } from "../middleware/verifyJWT.js";
 
 const chatRouter = express.Router() ;
 
-chatRouter.get('/private' , chat.getPrivateChat) ;
-chatRouter.put('/message/private' , chat.putMessagePrivateChat) ;
-chatRouter.put('/message/public' , chat.createGroupChat) ;
-chatRouter.put('/message/public/add' , chat.addPersonToGroup) ;
+chatRouter.get('/private/:friendId' , verifyJWT , chat.getPrivateChat) ;
+chatRouter.put('/message/private' , verifyJWT , chat.putMessagePrivateChat) ;
+chatRouter.put('/message/public' , verifyJWT , chat.createGroupChat) ;
+chatRouter.put('/message/public/add' , verifyJWT , chat.addPersonToGroup) ;
 
 
 export default chatRouter ;

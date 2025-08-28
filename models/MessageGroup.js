@@ -17,3 +17,5 @@ const messageGroupSchema = new Schema ({
 })
 
 const MessageGroup = mongoose.model('MessageGroup' , messageGroupSchema) ;
+
+export default MessageGroup ;

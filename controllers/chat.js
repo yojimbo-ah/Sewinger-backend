@@ -1,11 +1,12 @@
 import User from "../models/User.js";
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
+import MessageGroup from "../models/MessageGroup.js" ;
 import { ObjectId } from "mongodb";
 
 const getPrivateChat = async (req , res , next) => {
-    const userId = req.body.userId ;
-    const friendId = new ObjectId(req.body.friendId)  ;
+    const userId = req.user.id ;
+    const friendId = new ObjectId(req.params.friendId)  ;
 
     try {
         const user = await User.findById(userId) ;
@@ -13,9 +14,12 @@ const getPrivateChat = async (req , res , next) => {
             return res.status(400).json({message : 'There is no user with matching informations'}) ;
         }
 
-        const chat = await Chat.findOne({users : [userId , friendId] , type : 'private'}).populate('messages') ;
-
-        return res.status(200).json({chat : chat}) ;
+        const chat = await Chat.findOne({
+            users: { $all: [user._id, friendId] },
+            type: "private",
+            $expr: { $eq: [{ $size: "$users" }, 2] }
+        }).populate("messages");
+        return res.status(200).json(chat) ;
 
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -118,6 +122,35 @@ const addPersonToGroup = async (req , res , next) => {
         return res.status(200).json({message : 'user has been added to toe group chat'}) ;
     } catch (error) {
         return res.status(400).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const putMessagePublicChat = async (req , res , next) => {
+    const userId = req.body.userId ;
+    const chatId = req.body.chatid ;
+    const message = req.body.message ;
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
+        }
+        const chat = Chat.findById(chatId) ;
+
+        if (!chat) {
+            return res.status(400).json({message : 'Couldnt find chat'}) ;
+        }
+        const newMessage = new MessageGroup({
+            message : message ,
+            senderId : new ObjectId(userId) 
+        })
+        await newMessage.save() ;
+        chat.messages.push(newMessage._id) ;
+        await chat.save() ;
+
+        return res.status(200).json({message : 'Has been added'}) ;
+    } catch (error) {
+        return res.status(500).json({message : "Iternal server error"}) ;
     }
 }
 

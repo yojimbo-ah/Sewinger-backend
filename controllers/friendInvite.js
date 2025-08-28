@@ -4,7 +4,7 @@ import Chat from "../models/Chat.js";
 
 
 const postFriendInvite = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.userId ;
     const friendId = req.body.friendId ;
 
     try {
@@ -105,7 +105,7 @@ const deleteFriendInvite = async (req , res , next) => {
 }
 
 const approveFriendInvite = async (req , res , next) => {
-    const userId = req.body.userId ;
+    const userId = req.user.userId ;
     const friendId = req.body.friendId ;
     const approve = req.body.approve ;
 
