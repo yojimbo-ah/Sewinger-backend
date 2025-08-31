@@ -21,7 +21,8 @@ const messageSchema = new Schema ({
     } ,
     images : [{
         type : String ,
-        required : false 
+        required : false ,
+        default : []
     }]
 } , {timestamps : true})
 

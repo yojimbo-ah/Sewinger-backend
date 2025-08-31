@@ -4,9 +4,9 @@ import Chat from "../models/Chat.js";
 
 
 const postFriendInvite = async (req , res , next) => {
-    const userId = req.user.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
-
+    console.log(friendId) ;
     try {
 
         const user = await User.findById(userId) ;
@@ -16,12 +16,13 @@ const postFriendInvite = async (req , res , next) => {
         }
 
         const friend = await User.findById(friendId) ;
+        console.log(friend) ;
         if (!friend) {
             return res.status(400).json({message : 'Couldnt find friend profile'}) ;
         }
         let includes = false ;
         user.friendsRequests.forEach(request => {
-            if (request.firendId.toString() === friendId.toString()) {
+            if (request.friendId.toString() === friendId.toString()) {
                 includes = true ;
                 return true ;
             }
@@ -105,13 +106,16 @@ const deleteFriendInvite = async (req , res , next) => {
 }
 
 const approveFriendInvite = async (req , res , next) => {
-    const userId = req.user.userId ;
+    const userId = req.user.id ;
     const friendId = req.body.friendId ;
     const approve = req.body.approve ;
+    console.log(userId) ;
+    console.log(friendId) ;
+
 
     try {
         const user = await User.findById(userId) ;
-
+        console.log(1)
         if (!user) {
             return res.status(400).json({message : 'Couldnt find user with similair info'}) ;
         }
@@ -120,16 +124,16 @@ const approveFriendInvite = async (req , res , next) => {
         if (!friend) {
             return res.status(400).json({message : 'Couldnt find your friend try again later'}) ;
         }
-
+        console.log(2)
         // cheking if the friend is already in the friend section in the database :
         let alreadyFriend = false ;
-        user.friends.map(request => {
+        user.friends.forEach(request => {
             if (request.friendId.toString() === friendId.toString()) {
                 alreadyFriend = true ;
                 return true ;
             }
         })
-
+        console.log(3)
         if (alreadyFriend) {
             return res.status(400).json({message : 'You are already friend with this user'}) ;
         }
@@ -140,14 +144,14 @@ const approveFriendInvite = async (req , res , next) => {
         let index1 ;
         let index2 ;
 
-        user.friendsRequests.map((request , index) => {
+        user.friendsRequests.forEach((request , index) => {
             if (request.friendId.toString() === friendId.toString() && request.sentBy === 'friend') {
                 had1 = true ;
                 index1 = index ;
                 return true ;
             }
         })
-        friend.friendsRequests.map((request , index) => {
+        friend.friendsRequests.forEach((request , index) => {
             if (request.friendId.toString() === userId.toString()) {
                 index2 = index ;
                 had2 = true ;
@@ -156,7 +160,8 @@ const approveFriendInvite = async (req , res , next) => {
         })
 
 
-        if (approve && had1 && had2) {           
+        if (approve && had1 && had2) {      
+            console.log(4)     
             user.friendsRequests.splice(index1 , 1) ;
             user.friends.push({
                 friendId : friendId 
@@ -169,10 +174,10 @@ const approveFriendInvite = async (req , res , next) => {
             // creating a new chat between the two since they are friends 
 
             const newChat = new Chat ({
-                type : 'private' ,
                 users : [user._id , friend._id] ,
                 messages : []
             })
+            
             await user.save() ;
             await friend.save() ;
             await newChat.save() ;
@@ -186,11 +191,9 @@ const approveFriendInvite = async (req , res , next) => {
 
             return res.status(200).json({message : 'Friend had been added'}) ;
         } else if (!approve && had1 && had2) {
+            console.log(5)
             user.friendsRequests.splice(index1 , 1) ;
             friend.friendsRequests.splice(index2 , 1) ;
-
-            await friend.save() ;
-            await user.save() ;
 
             transporter.sendMail({
                 from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
@@ -204,6 +207,7 @@ const approveFriendInvite = async (req , res , next) => {
         return res.status(400).json({message : 'Couldnt complete confirmation'}) ;
 
     } catch (error) {
+        console.log(error)
         return res.status(500).json({message : 'Iternal server , ooopps'})
     }
 }
@@ -238,7 +242,7 @@ const deleteFriend = async (req , res , next) => {
                 return true ;
             }
         })
-        friend.friends.map((friend , index) => {
+        friend.friends.forEach((friend , index) => {
             if (friend.friendId.toString() === userId.toString()) {
                 had2 = true ;
                 index2 = index ;

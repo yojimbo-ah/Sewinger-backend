@@ -10,18 +10,17 @@ const chatSchema = new Schema ({
         required : true ,
         ref : 'User'
     }] ,
-    type : {
-        type : String ,
-        enum : ['private' , 'group'] ,
-        required : true
-    } ,
     messages : [{
         type : Types.ObjectId ,
         required : true ,
         ref : 'Message' ,
         default : []
-
-    }]
+    }] ,
+    ChatImage : {
+        type : String ,
+        required : true ,
+        default : 'no image'
+    }
 } , {timestamps : true}) ;
 
 const Chat = mongoose.model('Chat' , chatSchema) ;

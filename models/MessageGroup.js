@@ -12,7 +12,8 @@ const messageGroupSchema = new Schema ({
     } ,
     images : [{
         type : String ,
-        required : false 
+        required : false ,
+        default : []
     }]
 })
 

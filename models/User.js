@@ -85,6 +85,12 @@ const userSchema = new Schema({
             required : true ,
             enum : ['me' , 'friend']
         }
+    }] ,
+    groupChats : [{
+        type : Types.ObjectId ,
+        required : true ,
+        ref : 'GroupChat' ,
+        default : []
     }]
 } , {timestamps : true})
 

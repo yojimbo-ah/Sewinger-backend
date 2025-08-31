@@ -2,11 +2,14 @@ import User from "../models/User.js";
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
 import MessageGroup from "../models/MessageGroup.js" ;
+import GroupChat from "../models/GroupChat.js";
 import { ObjectId } from "mongodb";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = new ObjectId(req.params.friendId)  ;
+    console.log(userId) ;
+    console.log(friendId) ;
 
     try {
         const user = await User.findById(userId) ;
@@ -16,9 +19,9 @@ const getPrivateChat = async (req , res , next) => {
 
         const chat = await Chat.findOne({
             users: { $all: [user._id, friendId] },
-            type: "private",
             $expr: { $eq: [{ $size: "$users" }, 2] }
         }).populate("messages");
+        console.log(chat)
         return res.status(200).json(chat) ;
 
     } catch (error) {
@@ -37,7 +40,7 @@ const putMessagePrivateChat = async (req , res , next) => {
         if (!user) {
             return res.status(400).json({message : 'Coudlnt find user with similair informations'}) ;
         }
-        const chat = await Chat.findOne({users : [userId , friendId] , type : 'private'}) ;
+        const chat = await Chat.findOne({users : [userId , friendId]}) ;
 
         if (!chat) {
             return res.status(400).json({message : 'Couldnt find the chat with this person try again leter'}) ;
@@ -59,8 +62,9 @@ const putMessagePrivateChat = async (req , res , next) => {
 }
 
 const createGroupChat = async (req , res , next) => {
-    const userId = req.body.userId ;
-    const friendGroups = req.body.friendsId ;
+    const userId = req.user.id ;
+    const friendGroups = req.body.friendGroups ;
+    const name = req.body.name ;
 
     try {
         const user = await User.findById(userId) ;
@@ -76,21 +80,92 @@ const createGroupChat = async (req , res , next) => {
             return res.status(400).json({message : 'You cant create a group with a non friend'}) ;
         }
 
-        const newGroup = new Chat({
-            type : 'group' ,
+        const newGroup = new GroupChat({
             messages : [] ,
-            users : [user._id , friendGroups.map(friend => {
-                return new ObjectId(friend) ;
-            }) ]
+            users : [userId , ...friendGroups ] ,
+            options : {
+                name : name
+            }
         })
 
+        user.groupChats.push(newGroup._id) ;
+
+        friendGroups.forEach(async (friendId) => {
+            const friend = await User.findById(friendId) ;
+            friend.groupChats.push(newGroup._id) ;
+            await friend.save()
+        })
+
+        await user.save() ;
         await newGroup.save() ;
         return res.status(200).json({message : 'Group had been created succefully'}) ;
 
     } catch (error) {
+        console.log(error) ;
         return res.status(500).json({message : "iternal server error"}) ;
     }
 }
+
+const getPublicGroupChat = async (req , res , next) => {
+    const userId = req.user.id ;
+    const chatId = req.params.chatId ;
+
+    console.log(chatId) ;
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
+        }
+        const groupChat = await GroupChat.findById({_id : chatId })
+        if (!groupChat) {
+            return res.status(400).json({message : 'Couldnt find group chat with similair informations'}) ;
+        }
+
+        let includes = false ;
+        groupChat.users.forEach(participants => {
+            if (participants.toString() === userId) {
+                includes = true ;
+                return true
+            }
+        })
+        if (!includes) {
+            return res.status(400).json({message : 'You are not included in this chat'}) ;
+        }
+
+        await groupChat.populate('messages') ;
+        console.log(groupChat) ;
+        return res.status(200).json({...groupChat._doc}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const getUserGroups = async (req , res , next) => {
+    const userId = req.user.id ;
+
+    try {
+        const user = await User.findById(userId)
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
+        }
+        await user.populate('groupChats')
+        console.log(user) ;
+        const userChats = user.groupChats.map(chat => {
+            return {
+                chat : chat._id ,
+                options : chat.options 
+            }
+        })
+
+        return res.status(200).json({userChats}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
 
 const addPersonToGroup = async (req , res , next) => {
     const userId = req.body.userId ;
@@ -102,7 +177,7 @@ const addPersonToGroup = async (req , res , next) => {
         if (!user) {
             return res.status(400).json({message : 'Cant find user with similair informations'}) ;
         }
-        const chat = await Chat.findById(chatId) ;
+        const chat = await GroupChat.findById(chatId) ;
 
         let includes = false ;
         user.friends.forEach(friend => {
@@ -125,35 +200,9 @@ const addPersonToGroup = async (req , res , next) => {
     }
 }
 
-const putMessagePublicChat = async (req , res , next) => {
-    const userId = req.body.userId ;
-    const chatId = req.body.chatid ;
-    const message = req.body.message ;
 
-    try {
-        const user = await User.findById(userId) ;
-        if (!user) {
-            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
-        }
-        const chat = Chat.findById(chatId) ;
 
-        if (!chat) {
-            return res.status(400).json({message : 'Couldnt find chat'}) ;
-        }
-        const newMessage = new MessageGroup({
-            message : message ,
-            senderId : new ObjectId(userId) 
-        })
-        await newMessage.save() ;
-        chat.messages.push(newMessage._id) ;
-        await chat.save() ;
-
-        return res.status(200).json({message : 'Has been added'}) ;
-    } catch (error) {
-        return res.status(500).json({message : "Iternal server error"}) ;
-    }
-}
-
-const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , addPersonToGroup} ;
+const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
+                , addPersonToGroup , getUserGroups } ;
 
 export default chat ;
