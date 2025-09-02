@@ -177,7 +177,7 @@ const approveFriendInvite = async (req , res , next) => {
                 users : [user._id , friend._id] ,
                 messages : []
             })
-            
+
             await user.save() ;
             await friend.save() ;
             await newChat.save() ;
@@ -293,7 +293,10 @@ const getUserFriends = async (req , res , next) => {
 }
 
 const getUserPendingFriends = async (req , res , next) => {
+    console.log(2323) ;
     const userId = req.user.id ;
+    console.log(userId)
+    console.log('am hereeeeeee')
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -326,7 +329,7 @@ const getUserPendingFriends = async (req , res , next) => {
 
 const getUserFriendRequests = async (req , res , next ) => {
     const userId = req.user.id ;
-
+    console.log('get user friend requests') ;
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
         
