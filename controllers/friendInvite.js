@@ -101,6 +101,7 @@ const deleteFriendInvite = async (req , res , next) => {
         return res.status(400).json({message : 'Error happened , try later'}) ;
 
     } catch (error) {
+        console.log(error)
         return res.status(500).json({message : 'Iternal server error'})
     }
 }
@@ -145,7 +146,7 @@ const approveFriendInvite = async (req , res , next) => {
         let index2 ;
 
         user.friendsRequests.forEach((request , index) => {
-            if (request.friendId.toString() === friendId.toString() && request.sentBy === 'friend') {
+            if (request.friendId.toString() === friendId.toString() ) {
                 had1 = true ;
                 index1 = index ;
                 return true ;
@@ -201,13 +202,14 @@ const approveFriendInvite = async (req , res , next) => {
                 subject : 'Friend request' ,
                 html : `<p>${user.name.firstName} ${user.name.lastName} has denied your friend request</p>`
             })
+
+            await user.save() ;
+            await friend.save() ;
             return res.status(200).json({message : 'Friend Request has been denied'}) ;
         }
-
         return res.status(400).json({message : 'Couldnt complete confirmation'}) ;
-
     } catch (error) {
-        console.log(error)
+        console.log(error) ;
         return res.status(500).json({message : 'Iternal server , ooopps'})
     }
 }
@@ -356,6 +358,76 @@ const getUserFriendRequests = async (req , res , next ) => {
     }
 }
 
-const friend = {approveFriendInvite , postFriendInvite , deleteFriend , deleteFriendInvite , getUserFriends , getUserPendingFriends , getUserFriendRequests } ;
+const getUsers = async (req , res , next) => {
+    const userId = req.user.id ;
+    console.log(req.body) ;
+    const tag = req.body.tag ;
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Cant find user with similair informations'}) ;
+        }
+
+        let users = await User.find({
+            email : { $regex: tag , $options : "i"}
+        }).limit(20) ;
+
+        users = users.map(searchedUser => {
+            let includes1 = false , includes2 = false  , sentBy ;
+
+            user.friends.map(user => {
+                if (user.friendId.toString() === searchedUser._id.toString()) {
+                    includes1 = true ;
+                    return true ;
+                }
+            })
+
+            if (includes1) {
+                return {
+                    ...searchedUser._doc ,
+                    status : 'friend'
+                }
+            }
+
+            user.friendsRequests.map(user => {
+                if (user.friendId.toString() === searchedUser._id.toString()) {
+                    sentBy = user.sentBy ;
+                    includes2 = true ;
+                    return true ;
+                }
+            })
+
+            if (includes2) {
+                return {
+                    ...searchedUser._doc ,
+                    status : 'pending' ,
+                    sentBy : sentBy 
+                }
+            }
+
+            return {
+                ...searchedUser._doc ,
+                status : 'normal'
+            }
+        })
+
+        return res.status(200).json({users : users.map(user => {
+            return {
+                name : user.name ,
+                email : user.email , 
+                status : user.status ,
+                _id : user._id ,
+                sentBy : user?.sentBy
+            }
+        })}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const friend = {approveFriendInvite , postFriendInvite , deleteFriend , deleteFriendInvite 
+    , getUserFriends , getUserPendingFriends , getUserFriendRequests , getUsers } ;
 
 export default friend ;

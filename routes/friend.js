@@ -11,5 +11,7 @@ friendRouter.delete('/delete/request' , verifyJWT , friend.deleteFriendInvite) ;
 friendRouter.get('/requests/pending' , verifyJWT , friend.getUserPendingFriends) ;
 friendRouter.get('/requests' , verifyJWT , friend.getUserFriendRequests) ;
 friendRouter.get('/' , verifyJWT , friend.getUserFriends) ;
+friendRouter.put('/users' , verifyJWT , friend.getUsers) ;
+
 
 export default friendRouter ;
