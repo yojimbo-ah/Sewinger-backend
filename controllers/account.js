@@ -154,6 +154,11 @@ const login = async (req , res , next) => {
             errors.email = 'cant find a user with the same email' ;
             return res.status(400).json({errors : errors}) ;
         } 
+
+        // the request variable here is to check if the user has sent a a request to admins 
+        // to be a seller on the site and i coded it on the json web token and it get decoded and
+        // saved in the frontend (it has it own controller function that decodod it )
+        
         const request = await UserWaitSellerConf.findOne({userId : user._id}) ;
         let reqt = false ;
         if (request) {

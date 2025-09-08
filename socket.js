@@ -37,8 +37,11 @@ export const initSocket = (server) => {
       const userId = socket.userId ;
       console.log('New client connected:', socket.id);
       const user = await User.findById(userId) ;
+
+      // connecting the user to his private chat so he can get private messages directly to his id
       socket.join(`user:${userId}`)
 
+      // joining every roup chat on login so the user can get messages from all the groups he has joined
       user.groupChats.map(group => {
         socket.join(`chat:${group}`) ;
         console.log('joined chat : ' + group) ;
@@ -57,7 +60,8 @@ export const initSocket = (server) => {
       });
 
     } catch (error) {
-
+      console.log(error) ;
+      return resizeBy.status(500).json({message : 'Iternal server error'}) ;
     }
 
   });

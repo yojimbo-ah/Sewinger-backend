@@ -17,6 +17,7 @@ import orderRouter from "./routes/order.js";
 import adminRouter from "./routes/admin.js";
 import chatRouter from "./routes/chat.js";
 import friendRouter from "./routes/friend.js";
+import detailRouter from "./routes/detailManagement.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,6 +47,7 @@ app.use('/order' , orderRouter) ;
 app.use('/admin' , adminRouter) ;
 app.use('/chat' , chatRouter) ;
 app.use('/friend' , friendRouter) ;
+app.use('/detail' , detailRouter) ;
 
 
 mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
