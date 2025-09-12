@@ -86,7 +86,53 @@ const patchChangeName = async (req , res , next) => {
 }
 
 const putSocialMedias = async (req , res , next) => {
+    // this controller is not working for now , since the schema is not compatible yet
+    // it would be chnaged in the future
+    // (but the logic is correct)
+    const userId = req.user.id ;
+    const {facebook , instagram , github} = req.body.socials ;
 
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
+        }
+        let errors = {
+            instagram : undefined ,
+            github : undefined ,
+            facebook : undefined
+        }
+
+        let status = false ;
+        if (!validator.isURL(instagram)) {
+            errors.instagram = true ;
+            status = true ;
+        }
+        if (!validator.isURL(github)) {
+            errors.github = true ;
+            status = true ;
+        }
+        if (validator.isURL(facebook)) {
+            errors.facebook = true ;
+            status = true ;
+        }
+
+        if (status) {
+            return res.status(400).json({errors : errors}) ;
+        }
+
+        user.socials.instagram = instagram ;
+        user.socials.github = github ;
+        user.socials.facebook = facebook ;
+
+
+        await user.save() ;
+        return res.status(200).json({message : 'Socials has been edited'}) ;
+
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
 }
 
 const putProfileImage = async (req , res , next) => {

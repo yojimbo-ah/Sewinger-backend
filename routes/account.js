@@ -4,6 +4,8 @@ import { verifyJWT } from "../middleware/verifyJWT.js";
 
 const accountRouter = express.Router() ;
 
+// this is the account managements routes and verification of json wev tokens
+
 accountRouter.post('/login' , account.login);
 accountRouter.post('/signup' , account.signup);
 accountRouter.put('/signup/:token' , account.SignupVer);

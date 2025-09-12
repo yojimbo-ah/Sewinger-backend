@@ -110,13 +110,10 @@ const approveFriendInvite = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = req.body.friendId ;
     const approve = req.body.approve ;
-    console.log(userId) ;
-    console.log(friendId) ;
 
 
     try {
         const user = await User.findById(userId) ;
-        console.log(1)
         if (!user) {
             return res.status(400).json({message : 'Couldnt find user with similair info'}) ;
         }
@@ -125,7 +122,6 @@ const approveFriendInvite = async (req , res , next) => {
         if (!friend) {
             return res.status(400).json({message : 'Couldnt find your friend try again later'}) ;
         }
-        console.log(2)
         // cheking if the friend is already in the friend section in the database :
         let alreadyFriend = false ;
         user.friends.forEach(request => {
@@ -134,7 +130,6 @@ const approveFriendInvite = async (req , res , next) => {
                 return true ;
             }
         })
-        console.log(3)
         if (alreadyFriend) {
             return res.status(400).json({message : 'You are already friend with this user'}) ;
         }
@@ -161,8 +156,7 @@ const approveFriendInvite = async (req , res , next) => {
         })
 
 
-        if (approve && had1 && had2) {      
-            console.log(4)     
+        if (approve && had1 && had2) {          
             user.friendsRequests.splice(index1 , 1) ;
             user.friends.push({
                 friendId : friendId 
@@ -192,7 +186,6 @@ const approveFriendInvite = async (req , res , next) => {
 
             return res.status(200).json({message : 'Friend had been added'}) ;
         } else if (!approve && had1 && had2) {
-            console.log(5)
             user.friendsRequests.splice(index1 , 1) ;
             friend.friendsRequests.splice(index2 , 1) ;
 
@@ -290,6 +283,7 @@ const getUserFriends = async (req , res , next) => {
         return res.status(200).json({friends : friends}) ;
 
     } catch (error) {
+        console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
     }
 }

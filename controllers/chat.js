@@ -66,6 +66,15 @@ const createGroupChat = async (req , res , next) => {
     const friendGroups = req.body.friendGroups ;
     const name = req.body.name ;
 
+    if (friendGroups.length === 0) {
+        return res.status(400).json({message : 'Cant create a group without any users , add more'}) ;
+    }
+
+    if (name.trim().length === 0) {
+        return res.status(400).json({message : 'The name cant be empty'}) ;
+    } 
+
+
     try {
         const user = await User.findById(userId) ;
         if (!user) {

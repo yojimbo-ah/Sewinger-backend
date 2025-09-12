@@ -37,11 +37,16 @@ export const initSocket = (server) => {
       const userId = socket.userId ;
       console.log('New client connected:', socket.id);
       const user = await User.findById(userId) ;
+      console.log(user) ;
 
       // connecting the user to his private chat so he can get private messages directly to his id
+      // and might use it in the future for notification systems and stuff like that since it would be great
+      // and it the best and easiest method for real time updating for rest api app
       socket.join(`user:${userId}`)
 
-      // joining every roup chat on login so the user can get messages from all the groups he has joined
+      // joining every group chat on login so the user can get messages from all the groups he has joined
+      // this will make it easier to send messages and i dont need to join when the user access the chat 
+      // since the user will be already in the room with all the other active users
       user.groupChats.map(group => {
         socket.join(`chat:${group}`) ;
         console.log('joined chat : ' + group) ;
@@ -49,10 +54,10 @@ export const initSocket = (server) => {
 
       console.log(userId + ' has joined his room') ;
 
-      // this is for private chats :
+      // this is for private chats handleling :
       addMessageToChat(io , socket) ;
 
-      //this is for public chats :
+      //this is for public chats handlelling :
       addMessageToGroupChat(io , socket) ;
 
       socket.on('disconnect', () => {
@@ -61,7 +66,6 @@ export const initSocket = (server) => {
 
     } catch (error) {
       console.log(error) ;
-      return resizeBy.status(500).json({message : 'Iternal server error'}) ;
     }
 
   });
