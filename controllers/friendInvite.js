@@ -42,7 +42,7 @@ const postFriendInvite = async (req , res , next) => {
         await user.save() ;
         await friend.save() ;
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : friend.email ,
             subject : 'Friend request' ,
             html : `<p>${user.name.lastName} ${user.name.firstName} has sent you a friend request</p>`
@@ -178,7 +178,7 @@ const approveFriendInvite = async (req , res , next) => {
             await newChat.save() ;
             
             transporter.sendMail({
-                from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+                from : `Sewinger team <${process.env.EMAIL}>` ,
                 to : friend.email ,
                 subject : 'Approving friend request' ,
                 html : `<p>${user.name.firstName} ${friend.name.lastName} is now your friend</p>`
@@ -190,7 +190,7 @@ const approveFriendInvite = async (req , res , next) => {
             friend.friendsRequests.splice(index2 , 1) ;
 
             transporter.sendMail({
-                from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+                from : `Sewinger team <${process.env.EMAIL}>` ,
                 to : friend.email ,
                 subject : 'Friend request' ,
                 html : `<p>${user.name.firstName} ${user.name.lastName} has denied your friend request</p>`
@@ -276,7 +276,8 @@ const getUserFriends = async (req , res , next) => {
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
-                }
+                } ,
+                profileImage : user.bio.profileImage
             }
         })
 
@@ -289,10 +290,7 @@ const getUserFriends = async (req , res , next) => {
 }
 
 const getUserPendingFriends = async (req , res , next) => {
-    console.log(2323) ;
     const userId = req.user.id ;
-    console.log(userId)
-    console.log('am hereeeeeee')
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -311,10 +309,10 @@ const getUserPendingFriends = async (req , res , next) => {
                 name : {
                     firstName : request.friendId.name.firstName ,
                     lastName : request.friendId.name.lastName
-                }
+                } ,
+                profileImage : user.bio.profileImage
             }
         })
-        console.log(pendingRequests) ;
         return res.status(200).json({pendingRequests : pendingRequests}) ;
 
     } catch (error) {
@@ -325,7 +323,6 @@ const getUserPendingFriends = async (req , res , next) => {
 
 const getUserFriendRequests = async (req , res , next ) => {
     const userId = req.user.id ;
-    console.log('get user friend requests') ;
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
         
@@ -343,7 +340,8 @@ const getUserFriendRequests = async (req , res , next ) => {
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
-                }
+                } ,
+                profileImage : user.bio.profileImage
             }
         })
         return res.status(200).json({friendsRequests : friendsRequests}) ;
@@ -354,7 +352,6 @@ const getUserFriendRequests = async (req , res , next ) => {
 
 const getUsers = async (req , res , next) => {
     const userId = req.user.id ;
-    console.log(req.body) ;
     const tag = req.body.tag ;
 
     try {

@@ -74,6 +74,7 @@ const patchChangeName = async (req , res , next) => {
             userId : user._id.toString() ,
             firstName : user.name.firstName ,
             lastName : user.name.lastName ,
+            profileImage : user.bio.profileImage ,
             power : user.power ,
             sentRequest : reqt
         }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
@@ -83,6 +84,7 @@ const patchChangeName = async (req , res , next) => {
             email : user.email ,
             firstName : user.name.firstName ,
             lastName : user.name.lastName ,
+            profileImage : user.bio.profileImage ,
             power : user.power ,
             sentRequest : reqt
         }
@@ -156,9 +158,7 @@ const putProfileImage = async (req , res , next) => {
         }
 
         if (user.bio.profileImage) {
-            console.log(' i delete here') ;
             const profileId = extractPublicId(user.bio.profileImage);
-            console.log(profileId) ;
             // we add progile_images to the path since am saving them there
             // and cloudinry needs the full path to it or the asigned path with 
             // id
@@ -171,8 +171,43 @@ const putProfileImage = async (req , res , next) => {
         )
         
         user.bio.profileImage = result.secure_url ;
+
+        const request = await UserWaitSellerConf.findOne({userId : user._id}) ;
+
+        let reqt = false ;
+        
+        if (request) {
+            reqt = true ;
+        }
+
+        const userDoc = {
+            id : user._id ,
+            email : user.email ,
+            firstName : user.name.firstName ,
+            lastName : user.name.lastName ,
+            profileImage : user.bio.profileImage ,
+            power : user.power ,
+            sentRequest : reqt 
+        }
+
         await user.save() ;
-        return res.status(200).json({message : 'Image has been updated'}) ;
+
+        const token = jwt.sign({
+            email : user.email ,
+            userId : user._id.toString() ,
+            firstName : user.name.firstName ,
+            lastName : user.name.lastName ,
+            profileImage : user.bio.profileImage ,
+            power : user.power ,
+            sentRequest : reqt
+        }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
+
+        return res.status(200).json({
+                message : 'Image has been updated' ,
+                user : userDoc ,
+                jwtToken : token
+            }) ;
+
     } catch (error) {
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;

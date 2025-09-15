@@ -18,7 +18,8 @@ const confirmJwt = async (req , res , next) => {
         if (err) {
             return res.status(400).json({message : 'invalid token' , valid : false}) ;
         }
-        const {email , userId , lastName , firstName , power , sentRequest} = decoded ;
+        const {email , userId , lastName , firstName , power , sentRequest , profileImage} = decoded ;
+        console.log('ver ' + profileImage) ;
         const data = {
             email ,
             id : userId ,
@@ -26,6 +27,7 @@ const confirmJwt = async (req , res , next) => {
                 lastName ,
                 firstName
             } ,
+            profileImage : profileImage ,
             power : power ,
             sentRequest : sentRequest
         }
@@ -164,7 +166,7 @@ const login = async (req , res , next) => {
         if (request) {
             reqt = true ;
         }
-
+        console.log(user._doc) ;
         const hashedPassword = user.password ;
         const result = await bcrypt.compare(password , hashedPassword) ;
         if (result) {
@@ -173,12 +175,13 @@ const login = async (req , res , next) => {
                 userId : user._id.toString() ,
                 firstName : user.name.firstName ,
                 lastName : user.name.lastName ,
+                profileImage : user.bio.profileImage ,
                 power : user.power ,
                 sentRequest : reqt
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
             transporter.sendMail({
-                from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+                from : `Sewinger team ${process.env.EMAIL}` ,
                 to : email ,
                 subject : 'Account login' ,
                 html : '<p>Youre account has been logged in , verify if it was you </p>'
@@ -188,7 +191,8 @@ const login = async (req , res , next) => {
                 email : user.email ,
                 id : user._id ,
                 firstName : user.name.firstName ,
-                lastName : user.name.lastName
+                lastName : user.name.lastName ,
+                profileImage : user.bio.profileImage
             }});
         } 
         errors.password = 'invalid password' ;
@@ -328,8 +332,7 @@ const putUserWaitSellerRequest = async (req , res , next) => {
     const userId = req.user.id ;
     
     const description  = req.body.description ;
-    console.log(description)
-    console.log('am here')
+
 
     try {
 
