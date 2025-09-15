@@ -3,6 +3,17 @@ import UserWaitSellerConf from "../models/UserWaitSellerConf.js";
 import validator from 'validator' ;
 import jwt from 'jsonwebtoken'
 
+import path from 'path' ;
+import fs from 'fs' ;
+import { fileURLToPath } from "url";
+
+import cloudinary from "../cloudinary.js";
+
+import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const patchChangeName = async (req , res , next) => {
     const userId = req.user.id ;
     const firstName = req.body.name.firstName ;
@@ -121,9 +132,9 @@ const putSocialMedias = async (req , res , next) => {
             return res.status(400).json({errors : errors}) ;
         }
 
-        user.socials.instagram = instagram ;
-        user.socials.github = github ;
-        user.socials.facebook = facebook ;
+        user.bio.socials.instagram = instagram ;
+        user.bio.socials.github = github ;
+        user.bio.socials.facebook = facebook ;
 
 
         await user.save() ;
@@ -136,7 +147,36 @@ const putSocialMedias = async (req , res , next) => {
 }
 
 const putProfileImage = async (req , res , next) => {
+    const userId = req.user.id ;
 
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'})
+        }
+
+        if (user.bio.profileImage) {
+            console.log(' i delete here') ;
+            const profileId = extractPublicId(user.bio.profileImage);
+            console.log(profileId) ;
+            // we add progile_images to the path since am saving them there
+            // and cloudinry needs the full path to it or the asigned path with 
+            // id
+            await cloudinary.uploader.destroy(`profile_images/${profileId}`) ;
+        }
+
+        const result = await cloudinary.uploader.upload(
+            `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` ,
+            {folder : 'profile_images'}
+        )
+        
+        user.bio.profileImage = result.secure_url ;
+        await user.save() ;
+        return res.status(200).json({message : 'Image has been updated'}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
 }
 
 const detailManagement = {patchChangeName , putProfileImage , putSocialMedias} ;

@@ -4,110 +4,123 @@ import validator from 'validator' ;
 import path from 'path' ;
 import fs from 'fs' ;
 import { fileURLToPath } from "url";
+import cloudinary from "../cloudinary.js";
 import transporter from "../service/emailTransporter.js";
 
+import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 
-const PostProduct = async (req , res , next) => {
-    const userId = req.user.id ;
-    const productDetail = req.body ;
+    const PostProduct = async (req , res , next) => {
+        const userId = req.user.id ;
+        const productDetail = req.body ;
 
-    if(!userId) {
-        return res.status(400).json({message : 'invalid user'}) ;
+        if(!userId) {
+            return res.status(400).json({message : 'invalid user'}) ;
+        }
+
+        const user = await User.findById(userId) ;
+
+        if (!user) {
+            return res.status(400).json({message : 'invalid user , you are not allowed to create product'}) ;
+        }
+
+        let status = false ;
+        let errors = {
+            name : undefined ,
+            price : undefined ,
+            description : undefined ,
+            type : undefined ,
+            availbleItems : undefined ,
+            categories : undefined ,
+            images : undefined
+        }
+
+        const name = productDetail.name.trim() ;
+        const price = Number(productDetail.price) ;
+        const description = productDetail.description.trim();
+        const type = productDetail.type.trim() ;
+        const availbleItems = Math.floor(Number(productDetail.quantity)) ;
+        const categories = productDetail.categories ;
+
+
+        const images = req.files ;
+
+
+        if (validator.isEmpty(name)) {
+            errors.name = 'cant leave the name empty' ;
+            status = true
+        }
+        if(!validator.isLength(name , {min : 3 , max : 40})) {
+            errors.name = 'name should be between 3 and 20 characters' ;
+            status = true ;
+        } 
+        if (validator.isEmpty(description)) {
+            errors.description = 'cant leave the description empty' ;
+            status = true ;
+        }
+        if (!validator.isLength(description , {min : 10 , max : 150})) {
+            errors.description = 'the description must be between 10 and 80 characters' ;
+            status = true ;
+        }
+
+        if (price <= 0) {
+            errors.price = 'invalid price' ;
+            status = true ;
+        }
+        if (type !== 'raw' && type !== 'custom' && type !== 'normal') {
+            errors.type = 'invalid type' ;
+            status = true ;
+        }
+        if (availbleItems <= 0) {
+            errors.availbleItems = 'cant have minus availble items' ;
+            status = true
+        }
+        if (images.length > 4 || images.length < 1) {
+            errors.images = 'you are allowed to post only 4 images ' ;
+            status = true ;
+        }
+
+        if (status) {
+            return res.status(400).json({message : 'error validating' , errors : errors}) ;
+        }
+        // what does valid do here , it works as variable if the user was admin then the product is valid directly else is
+        // not and needs admin verification
+        let valid = false ;
+
+        if (user.power === 'admin') {
+            valid = true ;
+        }
+
+    
+        const promiseUrls = images.map(async (file) => {
+            const response = await cloudinary.uploader.upload(
+                `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
+                {folder : 'product_images'}
+            ) ;
+
+            return response.secure_url ;
+        })
+
+        const productImages = await Promise.all(promiseUrls) ;
+
+        const product = new Product({
+            name : name ,
+            price : price.toFixed(2) ,
+            description : description ,
+            type : type ,
+            images : productImages ,
+            availbleItems : availbleItems ,
+            categories : [...categories],
+            creatorId : user._id ,
+            valid : valid
+        })
+
+        const createdProduct = await product.save() ;
+        return res.status(200).json({message : `product created with id : ${createdProduct._id}`})
+
     }
-
-    const user = await User.findById(userId) ;
-
-    if (!user) {
-        return res.status(400).json({message : 'invalid user , you are not allowed to create product'}) ;
-    }
-
-    let status = false ;
-    let errors = {
-        name : undefined ,
-        price : undefined ,
-        description : undefined ,
-        type : undefined ,
-        availbleItems : undefined ,
-        categories : undefined ,
-        images : undefined
-    }
-
-    const name = productDetail.name.trim() ;
-    const price = Number(productDetail.price) ;
-    const description = productDetail.description.trim();
-    const type = productDetail.type.trim() ;
-    const availbleItems = Math.floor(Number(productDetail.quantity)) ;
-    const categories = productDetail.categories ;
-
-    const images = req.files.map(file => {
-        return file.filename ;
-    }) ;
-
-
-    if (validator.isEmpty(name)) {
-        errors.name = 'cant leave the name empty' ;
-        status = true
-    }
-    if(!validator.isLength(name , {min : 3 , max : 40})) {
-        errors.name = 'name should be between 3 and 20 characters' ;
-        status = true ;
-    } 
-    if (validator.isEmpty(description)) {
-        errors.description = 'cant leave the description empty' ;
-        status = true ;
-    }
-    if (!validator.isLength(description , {min : 10 , max : 150})) {
-        errors.description = 'the description must be between 10 and 80 characters' ;
-        status = true ;
-    }
-
-    if (price <= 0) {
-        errors.price = 'invalid price' ;
-        status = true ;
-    }
-    if (type !== 'raw' && type !== 'custom' && type !== 'normal') {
-        errors.type = 'invalid type' ;
-        status = true ;
-    }
-    if (availbleItems <= 0) {
-        errors.availbleItems = 'cant have minus availble items' ;
-        status = true
-    }
-    if (images.isLength > 4 || images.length < 1) {
-        errors.images = 'you are allowed to post only 4 images ' ;
-        status = true ;
-    }
-
-    if (status) {
-        return res.status(400).json({message : 'error validating' , errors : errors}) ;
-    }
-    // what does valid do here , it works as variable if the user was admin then the product is valid directly else is
-    // not and needs admin verification
-    let valid = false ;
-
-    if (user.power === 'admin') {
-        valid = true ;
-    }
-
-    const product = new Product({
-        name : name ,
-        price : price.toFixed(2) ,
-        description : description ,
-        type : type ,
-        images : images ,
-        availbleItems : availbleItems ,
-        categories : [...categories],
-        creatorId : user._id ,
-        valid : valid
-    })
-
-    const createdProduct = await product.save() ;
-    return res.status(200).json({message : `product created with id : ${createdProduct._id}`})
-
-}
 
 const getProducts = async (req , res , next) => {
     try {
@@ -152,9 +165,7 @@ const updateUserProduct = async (req , res , next) => {
     const type = req.body.type.trim() ;
     const availbleItems = req.body.availbleItems ;
     const categories = req.body.categories ;
-    const images = req.files.map((file) => {
-        return file.filename
-    })
+
 
     try {
         const user = await User.findById(userId) ;
@@ -186,7 +197,7 @@ const updateUserProduct = async (req , res , next) => {
             categories : undefined
         }
 
-        if (images.length < 1 || images.length > 4) {
+        if (req.files.length < 1 || req.files.length > 4) {
             errors.images = 'the max amount of images is 4 and the minimum is one' ;
             status = true ;
         }
@@ -235,31 +246,46 @@ const updateUserProduct = async (req , res , next) => {
         const oldImages = product.images ;
 
         let productStatus = false ;
-
         if (user.power === 'admin') {
             productStatus = true ;
-        }
+        }    
+
+        // deletting the old images
+        const promiseImages = oldImages.map(async (image) => {
+            const publicId = extractPublicId(image) ;
+            await cloudinary.uploader.destroy(`product_images/${publicId}`) ;
+        })
+        await Promise.all(promiseImages) ;
+
+        // setting up the new images 
+        const promiseUrls = req.files.map(async (file) => {
+            const response = await cloudinary.uploader.upload(
+                `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
+                {folder : 'product_images'}
+            ) ;
+
+            return response.secure_url ;
+        })
+
+        const productImages = await Promise.all(promiseUrls) ;
+
         product.name = productName ;
         product.description = productDescription ;
         product.price = productPrice ;
         product.availbleItems = availbleItems ;
         product.type = type ;
-        product.images = images ;
+        product.images = productImages ;
         product.categories = [...categories] ;
         product.status = productStatus  ;
 
-        oldImages.forEach((image) => {
-            const filePath = path.join(__dirname , '../images' , image) ;
-            fs.unlink(filePath , (err) => {
-                if (err) {
-                    console.log(err) ;
-                }
-            })
-        })
+
+        
+
         await product.save() ;
 
         return res.status(200).json({message : 'product has been created'}) ;
     } catch (error) {
+        console.log(error) ;
         return res.status(500).json({message : 'error happened' , error : error}) ;
     }
 
@@ -282,13 +308,12 @@ const productDelete = async (req , res , next) => {
             return res.status(400).json({message : 'you are not allowed to delete this product since you didnt create it'}) ;
         }
         const images = product.images ;
-
-        images.forEach((image) => {
-            const filePath = path.join(__dirname , '../images' , image) ;
-            fs.unlink(filePath , (err) => {
-                console.log(err) ;
-            })
+        
+        const promiseImages = images.map(async (image) => {
+            const publicId = extractPublicId(image) ;
+            await cloudinary.uploader.destroy(`product_images/${publicId}`) ; 
         })
+        await Promise.all(promiseImages) ;
 
         await product.deleteOne() ;
         return res.status(200).json({message : 'product has been deleted'}) ;

@@ -79,7 +79,7 @@ const deleteCart = async (req , res , next) => {
         user.cart.totalPrice = 0 ;
         await user.save() ;
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'Cart reseted' ,
             html : `<p>Your cart has been reseted</p>`

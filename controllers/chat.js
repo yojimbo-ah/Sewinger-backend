@@ -4,6 +4,7 @@ import Message from "../models/Message.js";
 import MessageGroup from "../models/MessageGroup.js" ;
 import GroupChat from "../models/GroupChat.js";
 import { ObjectId } from "mongodb";
+import cloudinary from "../cloudinary.js";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -63,6 +64,7 @@ const putMessagePrivateChat = async (req , res , next) => {
 
 const createGroupChat = async (req , res , next) => {
     const userId = req.user.id ;
+    console.log(req.body) ;
     const friendGroups = req.body.friendGroups ;
     const name = req.body.name ;
 
@@ -73,8 +75,6 @@ const createGroupChat = async (req , res , next) => {
     if (name.trim().length === 0) {
         return res.status(400).json({message : 'The name cant be empty'}) ;
     } 
-
-
     try {
         const user = await User.findById(userId) ;
         if (!user) {
@@ -89,11 +89,18 @@ const createGroupChat = async (req , res , next) => {
             return res.status(400).json({message : 'You cant create a group with a non friend'}) ;
         }
 
+        const response = await cloudinary.uploader.upload(
+            `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` ,
+            {folder : 'group_chat_images' }
+        ) ;
+
+
         const newGroup = new GroupChat({
             messages : [] ,
             users : [userId , ...friendGroups ] ,
             options : {
-                name : name
+                name : name ,
+                image : response.secure_url 
             }
         })
 

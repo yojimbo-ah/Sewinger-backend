@@ -83,7 +83,7 @@ const adminPatchProductStatus = async (req , res , next) => {
         product.valid = true ;
         await product.save() ;
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'Product validation' ,
             html : `<p>the product with ID : ${productId} , has been veryfied by the admin : ${user.name.lastName} ${user.name.firstName}</p>`
@@ -116,7 +116,7 @@ const adminDeleteProduct = async (req , res , next) => {
 
         await product.deleteOne() ;
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'Product deletion' ,
             html : `<p>the product with ID : ${productId} , has been deleted by the admin : ${admin.name.lastName} ${admin.name.firstName}</p>`
@@ -153,7 +153,7 @@ const adminPatchUserPower = async (req , res , next) => {
         await request.deleteOne()
         await user.save() ;
             transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'Account' ,
             html : `<p>You Account has been set as a seller by the admin ${admin.name.firstName} ${admin.name.lastName}</p>`

@@ -45,7 +45,7 @@ const putOrder = async (req , res , next) => {
         await user.save() ;
         await order.save()
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'Order added' ,
             html : `<p>Order added under your name</p>`

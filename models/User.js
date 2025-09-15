@@ -13,6 +13,30 @@ const userSchema = new Schema({
             required : true
         }
     } ,
+    bio : {
+        profileImage : {
+            type : String ,
+            required : false ,
+            default : null
+        } ,
+        socials : {
+            instagram : {
+                type : String ,
+                required : false ,
+                default : null
+            } ,
+            facebook : {
+                type : String ,
+                required : false ,
+                default : null
+            } ,
+            github : {
+                type : String ,
+                required : false ,
+                default : null
+            } 
+        }
+    } ,
     email : {
         type : String ,
         required : true

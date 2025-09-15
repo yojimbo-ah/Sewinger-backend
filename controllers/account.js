@@ -105,7 +105,7 @@ const resetAccount = async (req , res , next) => {
     try {
         await newToken.save() ;
         transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : user.email ,
             subject : 'password reseting' ,
             html : `<p> reset the password
@@ -280,7 +280,7 @@ const signup = async (req , res , next) => {
 
         await user.save()
         await transporter.sendMail({
-            from : 'Sewinger team <abbad.ahmed.gg@gmail.com>' ,
+            from : `Sewinger team <${process.env.EMAIL}>` ,
             to : email ,
             subject : 'account creation' ,
             html : `<p><b>confirm your account creation : <a href="http://localhost:5173/account/signup/${token}">confirm</a></b></p>`
@@ -309,7 +309,7 @@ const SignupVer = async (req , res , next) => {
                     firstName : awaitingAccount.name.firstName ,
                     lastName : awaitingAccount.name.lastName
                 } ,
-                password : awaitingAccount.password 
+                password : awaitingAccount.password ,
                 
             })
             await user.save() ;

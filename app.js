@@ -9,6 +9,8 @@ import dotenv from 'dotenv'
 
 dotenv.config() ;
 
+
+
 // routes 
 import accountRouter from "./routes/account.js";
 import productRouter from "./routes/products.js";
@@ -28,6 +30,8 @@ const server = http.createServer(app) ;
 initSocket(server)
 
 app.use(express.json()) ;
+
+
 
 // the images handling would be changed later , and it would be handled in the cloud (By external cloud) 
 

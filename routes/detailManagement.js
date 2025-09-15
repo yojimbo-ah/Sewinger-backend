@@ -1,6 +1,7 @@
 import express from 'express' ;
 import detailManagement from '../controllers/detailManagement.js';
 import { verifyJWT } from '../middleware/verifyJWT.js';
+import { upload } from '../middleware/upload.js';
 
 const detailRouter = express.Router() ;
 
@@ -8,6 +9,6 @@ const detailRouter = express.Router() ;
 
 detailRouter.patch('/name' , verifyJWT , detailManagement.patchChangeName) ;
 detailRouter.patch('/social' , verifyJWT , detailManagement.putSocialMedias) ;
-detailRouter.patch('/image' , verifyJWT , detailManagement.putProfileImage) ;
+detailRouter.patch('/image' , verifyJWT , upload.single('image') , detailManagement.putProfileImage) ;
 
 export default detailRouter ;
