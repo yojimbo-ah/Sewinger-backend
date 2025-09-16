@@ -9,21 +9,30 @@ import cloudinary from "../cloudinary.js";
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = new ObjectId(req.params.friendId)  ;
-    console.log(userId) ;
-    console.log(friendId) ;
+
 
     try {
         const user = await User.findById(userId) ;
         if (!user) {
             return res.status(400).json({message : 'There is no user with matching informations'}) ;
         }
+        const friend = await User.findById(friendId) ;
+        if (!friend) {
+            return res.status(400).json({message : 'Couldnt find freind'}) ;
+        }
 
         const chat = await Chat.findOne({
             users: { $all: [user._id, friendId] },
             $expr: { $eq: [{ $size: "$users" }, 2] }
         }).populate("messages");
-        console.log(chat)
-        return res.status(200).json(chat) ;
+
+        // we need both the chat and the friend data in the frontend
+        // since we have to show the name and the pfp
+
+        return res.status(200).json({chat : chat , friend : {
+            profileImage : friend.bio.profileImage ,
+            name : friend.name
+        }});
 
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -119,6 +128,26 @@ const createGroupChat = async (req , res , next) => {
     } catch (error) {
         console.log(error) ;
         return res.status(500).json({message : "iternal server error"}) ;
+    }
+}
+
+const patchPublicChatDetails = async (req , res , next) => {
+    const userId = req.user.id ;
+    const chatId = req.body.chatId ;
+
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user'}) ;
+        }
+        const chat = await GroupChat.findById(chatId) ;
+        if (!chat) {
+            return res.status(500).json({message : 'Couldnt find chat'}) ;
+        }
+    } catch (error) {
+        console.log(error) ;
+        return res.status(400).json({message : 'Iternal server error'}) ;
     }
 }
 

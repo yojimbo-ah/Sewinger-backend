@@ -277,7 +277,7 @@ const getUserFriends = async (req , res , next) => {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : user.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage
             }
         })
 
@@ -310,7 +310,7 @@ const getUserPendingFriends = async (req , res , next) => {
                     firstName : request.friendId.name.firstName ,
                     lastName : request.friendId.name.lastName
                 } ,
-                profileImage : user.bio.profileImage
+                profileImage : request.friendId.bio.profileImage
             }
         })
         return res.status(200).json({pendingRequests : pendingRequests}) ;
@@ -341,7 +341,7 @@ const getUserFriendRequests = async (req , res , next ) => {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : user.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage
             }
         })
         return res.status(200).json({friendsRequests : friendsRequests}) ;
