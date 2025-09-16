@@ -1,5 +1,9 @@
 import mongoose , {Schema , Types} from "mongoose";
 
+//////////////////////////////////////////
+//STILL WORKING ON IT , MIGHT CHANGE IT///
+/////////////////////////////////////////
+
 const groupChatSchema = new Schema ({
     users : [{
         type : Types.ObjectId ,
@@ -22,6 +26,11 @@ const groupChatSchema = new Schema ({
             type : String ,
             required : true ,
             default : 'No image'
+        } ,
+        admin : {
+            type : Types.ObjectId ,
+            ref : 'User' ,
+            required : true
         }
     }
 } , {timestamps : true})

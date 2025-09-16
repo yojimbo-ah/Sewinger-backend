@@ -5,6 +5,7 @@ import MessageGroup from "../models/MessageGroup.js" ;
 import GroupChat from "../models/GroupChat.js";
 import { ObjectId } from "mongodb";
 import cloudinary from "../cloudinary.js";
+import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -73,7 +74,6 @@ const putMessagePrivateChat = async (req , res , next) => {
 
 const createGroupChat = async (req , res , next) => {
     const userId = req.user.id ;
-    console.log(req.body) ;
     const friendGroups = req.body.friendGroups ;
     const name = req.body.name ;
 
@@ -109,7 +109,8 @@ const createGroupChat = async (req , res , next) => {
             users : [userId , ...friendGroups ] ,
             options : {
                 name : name ,
-                image : response.secure_url 
+                image : response.secure_url ,
+                admin : userId
             }
         })
 
@@ -155,7 +156,6 @@ const getPublicGroupChat = async (req , res , next) => {
     const userId = req.user.id ;
     const chatId = req.params.chatId ;
 
-    console.log(chatId) ;
 
     try {
         const user = await User.findById(userId) ;
@@ -166,6 +166,7 @@ const getPublicGroupChat = async (req , res , next) => {
         if (!groupChat) {
             return res.status(400).json({message : 'Couldnt find group chat with similair informations'}) ;
         }
+        const groupsUserIds = groupChat.users ;
 
         let includes = false ;
         groupChat.users.forEach(participants => {
@@ -177,10 +178,21 @@ const getPublicGroupChat = async (req , res , next) => {
         if (!includes) {
             return res.status(400).json({message : 'You are not included in this chat'}) ;
         }
+        const groupUserPromises = groupsUserIds.map(async (groupUserId) => {
+            const groupUser = await User.findById(groupUserId) ;
+            return {
+                _id : groupUser._id ,
+                name : groupUser.name ,
+                profileImage : groupUser.bio.profileImage
+            }
+        })
+
+        const groupUsers = await Promise.all(groupUserPromises) ;
+        console.log(groupUsers) ;
 
         await groupChat.populate('messages') ;
         console.log(groupChat) ;
-        return res.status(200).json({...groupChat._doc}) ;
+        return res.status(200).json({groupChat :  {...groupChat._doc} , groupUsers : groupUsers}) ;
     } catch (error) {
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -217,6 +229,10 @@ const addPersonToGroup = async (req , res , next) => {
     const friendId = req.body.friendId ;
     const chatId = req.body.chatId ;
 
+    if (req.body.name.trim() === '') {
+        return res.status(400).json({message : 'Cant leave the name empty'}) ;
+    }
+
     try {
         const user = await User.findById(userId) ;
         if (!user) {
@@ -245,9 +261,48 @@ const addPersonToGroup = async (req , res , next) => {
     }
 }
 
+const patchGroupDetails = async (req , res , next) => {
+    const userId = req.user.id ;
+    const chatId = req.body.chatId ;
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user'}) ;
+        }
+
+        const groupChat = await GroupChat.findById(chatId) ;
+        if (groupChat) {
+            return res.status(400).json({message : 'Couldnt find chat'}) ;
+        }
+        if (groupChat.options.admin.toString() !== userId.toString()) {
+            return res.status(400).json({message : 'You are not the admin for this chat'}) ;
+        }
+
+        // delete the old chat image
+        if (groupChat.options.image) {
+            const imageId = extractPublicId(groupChat.options.image) ;
+            await cloudinary.uploader.destroy(imageId) ;
+        }
+        const response = await cloudinary.uploader.upload(
+            `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` ,
+            {folder : 'group_chat_images'}
+        )
+
+        groupChat.options.image = response.secure_url ;
+        groupChat.options.name = req.body.name ;
+
+        await groupChat.save() ;
+        return res.status(200).json({message : 'Group chat has been edited'}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error' }) ;
+    }
+}
+
 
 
 const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
-                , addPersonToGroup , getUserGroups } ;
+                , addPersonToGroup , getUserGroups , patchGroupDetails } ;
 
 export default chat ;
