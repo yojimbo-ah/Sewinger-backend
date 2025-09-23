@@ -5,10 +5,12 @@ import { upload } from '../middleware/upload.js';
 
 const productRouter = express.Router() ;
 
-productRouter.post('/create' , verifyJWT , upload.array("images", 4) , products.PostProduct ) ;
+const IMAGES_COUNT = 4 ;
+
+productRouter.post('/create' , verifyJWT , upload.array("images", IMAGES_COUNT) , products.PostProduct ) ;
 productRouter.get('/normal' , products.getProducts);
 productRouter.get('/user/:valid' , verifyJWT , products.getUserProducts) ;
-productRouter.patch('/edit/:productId' , verifyJWT , upload.array("images" , 4) , products.updateUserProduct) ;
+productRouter.patch('/edit/:productId' , verifyJWT , upload.array("images" , IMAGES_COUNT) , products.updateUserProduct) ;
 productRouter.delete('/delete/:productId' , verifyJWT , products.productDelete) ;
 productRouter.get('/details/:productId' , products.getProductDetails) ;
 

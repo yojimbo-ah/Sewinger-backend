@@ -10,11 +10,12 @@ const messageGroupSchema = new Schema ({
         required : true ,
         ref : 'User'
     } ,
-    images : [{
+    type : {
         type : String ,
-        required : false ,
-        default : []
-    }]
+        required : true ,
+        enum : ['text' , 'image' , 'video'] ,
+        default : 'text'
+    }
 })
 
 const MessageGroup = mongoose.model('MessageGroup' , messageGroupSchema) ;

@@ -6,6 +6,7 @@ import GroupChat from "../models/GroupChat.js";
 import { ObjectId } from "mongodb";
 import cloudinary from "../cloudinary.js";
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
+import { getIO } from "../socket.js";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -278,18 +279,19 @@ const patchGroupDetails = async (req , res , next) => {
         if (groupChat.options.admin.toString() !== userId.toString()) {
             return res.status(400).json({message : 'You are not the admin for this chat'}) ;
         }
+        if (req.file) {
+            // delete the old chat image
+            if (groupChat.options.image) {
+                const imageId = extractPublicId(groupChat.options.image) ;
+                await cloudinary.uploader.destroy(imageId) ;
+            }
+            const response = await cloudinary.uploader.upload(
+                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` ,
+                {folder : 'group_chat_images'}
+            )
 
-        // delete the old chat image
-        if (groupChat.options.image) {
-            const imageId = extractPublicId(groupChat.options.image) ;
-            await cloudinary.uploader.destroy(imageId) ;
+            groupChat.options.image = response.secure_url ;            
         }
-        const response = await cloudinary.uploader.upload(
-            `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` ,
-            {folder : 'group_chat_images'}
-        )
-
-        groupChat.options.image = response.secure_url ;
         groupChat.options.name = req.body.name ;
 
         await groupChat.save() ;
@@ -301,8 +303,154 @@ const patchGroupDetails = async (req , res , next) => {
 }
 
 
+// this controller is for real time public chat updating just for the images 
+// since you cant send images videos or files in general using sockets 
+// so we use normal http request but we send the respond using socket from inside the request 
+// there exist other approaches but this is great method and it works well with the multer 
+// cloudinary api setup
+// (same for the uploadImagePrivate)
+const uploadImagesPublic = async (req , res , next) => {
+    const userId = req.user.id ;
+    const chatId = req.body.chatId ;
+    const io = getIO() ;
+
+    if (req.files.length === 0) {
+        return res.status(400).json({message : ''})
+    }
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'There is no user with similair informations'}) ;
+        }
+        const groupChat = await GroupChat.findById(chatId) ;
+        if (!groupChat) {
+            return res.status(400).json({message : 'There is no group with similair informations'}) ;
+        }
+
+        let includes = false ;
+        groupChat.users.forEach(user => {
+            if (user.toString() === userId) {
+                includes = true ;
+                return true ;
+            }
+        })
+
+        if (!includes) {
+            return res.status(400).json({message : 'You are not allowed in this chat'}) ;
+        }
+
+        const imagesPromise = req.files.map(async (file) => {
+            const response = await cloudinary.uploader.upload(
+                `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
+                {folder : `group_chats/chat_${chatId}`}
+            )
+
+            return response.secure_url ;
+        }) ;
+
+        // the array that contains the images url from cloudinary
+
+        const imagesArray = await Promise.all(imagesPromise) ;
+
+
+        const imagesMessagesPromises = imagesArray.map(async(imageMessage) => {
+            const newMessage = new MessageGroup({
+                message : imageMessage ,
+                senderId : userId ,
+                type : 'image'
+            }) ;
+
+            await newMessage.save() ;
+            groupChat.messages.push(newMessage._id) ;
+            return newMessage._doc ;
+        })
+
+        const imagesMessages = await Promise.all(imagesMessagesPromises) ;
+        await groupChat.save() ;
+
+        imagesMessages.forEach(message => {
+            io.to(`chat:${chatId}`).emit('receive_message_public', message) ;
+        })
+        
+        return res.status(200).json({message : 'Pictures sent successfully'}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const uploadImagePrivate = async (req , res , next) => {
+    console.log('about to save the images') ;
+    const userId = req.user.id ;
+    const friendId = req.body.friendId ;
+    const io = getIO() ;
+
+    if (req.files.length === 0) {
+        return res.status(400).json({message : 'There is no sent images'}) ;
+    }
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'There is no user with similair inforamtions'}) ;
+        }
+        const chat = await Chat.findOne({
+            users: { $all: [user._id, friendId] },
+            $expr: { $eq: [{ $size: "$users" }, 2] }
+        })
+
+        if (!chat) {
+            return res.status(400).json({message : 'There is no chat with similair informations'}) ;
+        }
+
+        const imagesPromise = req.files.map(async (file) => {
+            const response = await cloudinary.uploader.upload(
+                `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
+                {folder : `private_chats/chat_${chat._id.toString()}`}
+            )
+
+            return response.secure_url ;
+        }) ;
+
+        const imagesArray = await Promise.all(imagesPromise) ;
+
+
+        const imagesMessagesPromises = imagesArray.map(async(imageMessage) => {
+            const newMessage = new Message({
+                message : imageMessage ,
+                senderId : userId ,
+                reciverId : friendId ,
+                type : 'image'
+            }) ;
+
+            await newMessage.save() ;
+            chat.messages.push(newMessage._id) ;
+            return newMessage._doc ;
+        })
+
+        const imagesMessages = await Promise.all(imagesMessagesPromises) ;
+        await chat.save() ;
+
+        imagesMessages.forEach(message => {
+            //  here we sent to two rooms since in the private chat the logique of sending
+            // messages is diffrent then public , because in public all the users join the same room ,
+            // and we just broadcast it to all the users in the room , but in the private ,
+            // the user just joins one room with his id , that id all his freinds send messages 
+            // to the same room so that why we send two emits one with the userId and one with the friendId
+            io.to(`user:${userId}`).emit('receive_message', message) ;
+            io.to(`user:${friendId}`).emit('receive_message', message) ;
+        })
+
+        return res.status(200).json({message : 'Pictures has been sent'}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
 
 const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
-                , addPersonToGroup , getUserGroups , patchGroupDetails } ;
+        , addPersonToGroup , getUserGroups , patchGroupDetails , uploadImagesPublic , uploadImagePrivate} ;
 
 export default chat ;

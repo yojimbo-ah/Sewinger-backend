@@ -19,11 +19,12 @@ const messageSchema = new Schema ({
         type : String ,
         required : true
     } ,
-    images : [{
+    type : {
         type : String ,
-        required : false ,
-        default : []
-    }]
+        required : true ,
+        default : 'text' ,
+        enum : ['text' , 'image' , 'video']
+    }
 } , {timestamps : true})
 
 

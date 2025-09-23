@@ -9,7 +9,9 @@ import dotenv from 'dotenv'
 
 dotenv.config() ;
 
-
+// all the data is handled by external cloud storage 
+// cloudinary for files (for now just pictures , in the future vids) 
+// mongodb handles the json storage format 
 
 // routes 
 import accountRouter from "./routes/account.js";
@@ -33,9 +35,6 @@ app.use(express.json()) ;
 
 
 
-// the images handling would be changed later , and it would be handled in the cloud (By external cloud) 
-
-app.use('/images', express.static(path.join(__dirname, 'images')));
 // CORS setup 
 app.use((req , res , next) => {
     res.setHeader('Access-Control-Allow-Origin' , '*')
@@ -56,7 +55,7 @@ app.use('/detail' , detailRouter) ;
 
 mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
     .then(result => {
-        server.listen(3000 , () => {
+        server.listen(process.env.LISTEN_AT || 3000 , () => {
             console.log('conneceted the server')
         }) ;
     })

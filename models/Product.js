@@ -1,5 +1,7 @@
 import mongoose , {Types , Schema} from "mongoose";
 
+// might add description later in the future
+
 const productSchema = new Schema({
     name : {
         type : String ,
