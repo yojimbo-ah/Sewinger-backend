@@ -49,10 +49,11 @@ const adminGetSellerRequests = async (req , res , next) => {
                 userId : request.userId._id ,
                 description : request.description ,
                 createdAt : request.createdAt ,
-                userName : {
+                name : {
                     firstName : request.userId.name.firstName ,
                     lastName : request.userId.name.lastName
-                }
+                } ,
+                profilePicture : request.userId.bio.profilePicture
             }
         })
         return res.status(200).json({requests : sellerRequests}) ;
@@ -113,6 +114,10 @@ const adminDeleteProduct = async (req , res , next) => {
         if (!product) {
             return res.status(400).json({message : 'Couldnt find product with similair info'}) ;
         }
+        const user = await User.findById(product.creatorId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find the creator of the product'}) ;
+        }
 
         await product.deleteOne() ;
         transporter.sendMail({
@@ -130,7 +135,7 @@ const adminDeleteProduct = async (req , res , next) => {
 const adminPatchUserPower = async (req , res , next) => {
     const adminId = req.user.id ;
     const userId = req.params.userId ;
-
+    const status = req.body.status ;
     try {
         const admin = await User.findById(adminId) ;
         if (!admin) {
@@ -140,17 +145,22 @@ const adminPatchUserPower = async (req , res , next) => {
             return res.status(400).json({message : 'This user is not allowed as admin'}) ;
         }
         const user = await User.findById(userId) ;
-        const request = await UserWaitSellerConf.find({userId : userId}) ;
+        const request = await UserWaitSellerConf.findOne({userId : userId}) ;
 
         if (!user) {
             return res.status(400).json({message : 'Couldnt find the user'}) ;
         }
         if (!request) {
-            return res.status(500).json({message : 'Error happened try again'}) ;
+            return res.status(400).json({message : 'Error happened try again'}) ;
+        }
+        if (!status) {
+            await UserWaitSellerConf.deleteMany({userId : userId}) ;
+            console.log('am here') ;
+            return res.status(200).json({message : 'Request to be seller has been denied'}) ;
         }
 
         user.power = 'seller' ;
-        await request.deleteOne()
+        await UserWaitSellerConf.deleteMany({userId : userId}) ;
         await user.save() ;
             transporter.sendMail({
             from : `Sewinger team <${process.env.EMAIL}>` ,
@@ -161,6 +171,7 @@ const adminPatchUserPower = async (req , res , next) => {
         return res.status(200).json({message : 'Success '}) ;
 
     } catch (error) {
+        console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
     }
 }
