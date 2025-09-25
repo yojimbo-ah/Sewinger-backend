@@ -332,8 +332,15 @@ const getProductDetails = async (req , res , next) => {
         if (!product) {
             return res.status(400).json('Coudlnt find product with familair id') ;
         }
+        const creator = await User.findById(product.creatorId) ;
+        if (!creator) {
+            return res.status(400).json({message : 'Couldnt find the creator'}) ;
+        }
 
-        return res.status(200).json({product : product}) ;
+        return res.status(200).json({product : product , creator : {
+            name : creator.name ,
+            bio : creator.bio 
+        }}) ;
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error , try again later'}) ;
     }

@@ -3,10 +3,13 @@ import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
 import MessageGroup from "../models/MessageGroup.js" ;
 import GroupChat from "../models/GroupChat.js";
-import { ObjectId } from "mongodb";
 import cloudinary from "../cloudinary.js";
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 import { getIO } from "../socket.js";
+
+import { ObjectId } from "mongodb";
+import streamifier from 'streamifier' ;
+import { Socket } from "socket.io";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -449,8 +452,152 @@ const uploadImagePrivate = async (req , res , next) => {
     }
 }
 
+// started working on the video handling section 
+
+const uploadVideosPublic = async (req , res , next) => {
+    const userId = req.user.id ;
+    const chatId = req.body.chatId ;
+    const io = getIO() ;
+
+    if (req.files.length === 0) {
+        return res.status(400).json({message : 'Error happened'}) ;
+    }
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find the user'}) ;
+        }
+        const chat = await GroupChat.findById(chatId) ;
+        if (!chat) {
+            return res.status(400).json({message : 'Couldnt find chat with similair id'}) ;
+        }
+        let includes = false ;
+        chat.users.forEach(userChatId => {
+            if (userChatId.toString() === userId.toString()) {
+                includes = true ;
+                return true ;
+            }
+        })
+        if (!includes) {
+            return res.status(400).json({message : 'You are not allowed into this group chat'}) ;
+        }
+
+        const promiseArray = req.files.map(async(file) => {
+            const response = await new Promise ((resolve , reject) => {
+                const stream = cloudinary.uploader.upload_stream({
+                        resource_type : 'video' ,
+                        folder : `public_chats/chat_${chat._id.toString()}`
+                    } ,
+                    (error , result) => {
+                        if (error) reject(error) ;
+                        if (result) resolve(result)
+                    }
+                ) ;
+                streamifier.createReadStream(file.buffer).pipe(stream) ;
+
+            }) ;
+            const newMessage = new MessageGroup({
+                senderId : userId ,
+                type : 'video' ,
+                message : response.secure_url
+            })
+            await newMessage.save() ;
+            chat.messages.push(newMessage._id) ;
+            return newMessage._doc ;
+        })
+
+        const videosArray = await Promise.all(promiseArray) ;
+        await chat.save() ;
+
+        videosArray.forEach(videoMessage => {
+            io.to(`chat:${chatId}`).emit('receive_message_public', videoMessage) ;
+        })
+        // the response would contain are secure_url to save it into our databse later 
+        return res.status(200).json({message : 'Videos uploaded succefully'}) ;
+
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'})
+    }
+}
+
+const uploadVideosPrivate = async (req , res , next) => {
+    const userId = req.user.id ;
+    const friendId = req.body.friendId ;
+    const io = getIO() ;
+
+    if (req.files.length === 0) {
+        return res.status(400).json({message : 'Error happened'}) ;
+    }
+    const file = req.files[0] ;
+    try {
+        const user = await User.findById(userId) ;
+        if(!user) {
+            return res.status(400).json({message : 'Couldnt find user'}) ;
+        }
+        const chat = await Chat.findOne({
+            users: { $all: [user._id, friendId] },
+            $expr: { $eq: [{ $size: "$users" }, 2] }
+        })
+        if (!chat) {
+            return res.status(400).json({message : 'You are not friend with this user'}) ;
+        }
+
+        // what happenening here is that cloudinary cant upload the video directly to there servers
+        // and the videos are currently saved in the buffed as bytes , so what we need to do is to seperate
+        // them into chunks because that what the cloudinary api expect , these chunks would be send on stream
+        // and that why we use the stremifier libaryry 
+        const promiseArray = req.files.map(async(file) => {
+            const response = await new Promise ((resolve , reject) => {
+                // we create the stream here (still not sending the chunks)
+                // (just created the stream)
+                const stream = cloudinary.uploader.upload_stream({
+                        resource_type : 'video' ,
+                        folder : `private_chats/chat_${chat._id.toString()}`
+                    } ,
+                    (error , result) => {
+                        // in case of error happening
+                        if (error) reject(error) ;
+                        // resolving at the end
+                        if (result) resolve(result)
+                    }
+                ) ;
+                // sending the chunks here from out stream and creating them from out buffer
+                streamifier.createReadStream(file.buffer).pipe(stream) ;
+
+            }) ;
+            const newMessage = new Message({
+                senderId : userId ,
+                reciverId : friendId ,
+                type : 'video' ,
+                message : response.secure_url
+            })
+            await newMessage.save() ;
+            chat.messages.push(newMessage._id) ;
+            return newMessage._doc ;
+        })
+
+
+        const videosArray = await Promise.all(promiseArray) ;
+        await chat.save() ;
+
+        videosArray.forEach(videoMessage => {
+            io.to(`user:${userId}`).emit('receive_message', videoMessage) ;
+            io.to(`user:${friendId}`).emit('receive_message', videoMessage) ;     
+        })
+        // the response would contain are secure_url to save it into our databse later 
+        return res.status(200).json({message : 'Videos uploaded succefully'}) ;
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
 
 const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
-        , addPersonToGroup , getUserGroups , patchGroupDetails , uploadImagesPublic , uploadImagePrivate} ;
+        , addPersonToGroup , getUserGroups , patchGroupDetails , uploadImagesPublic , uploadImagePrivate 
+        , uploadVideosPublic , uploadVideosPrivate
+    } ;
 
 export default chat ;
