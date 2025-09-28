@@ -530,7 +530,6 @@ const uploadVideosPrivate = async (req , res , next) => {
     if (req.files.length === 0) {
         return res.status(400).json({message : 'Error happened'}) ;
     }
-    const file = req.files[0] ;
     try {
         const user = await User.findById(userId) ;
         if(!user) {
@@ -545,13 +544,16 @@ const uploadVideosPrivate = async (req , res , next) => {
         }
 
         // what happenening here is that cloudinary cant upload the video directly to there servers
-        // and the videos are currently saved in the buffed as bytes , so what we need to do is to seperate
+        // and the videos are currently saved in the buffer as bytes , so what we need to do is to seperate
         // them into chunks because that what the cloudinary api expect , these chunks would be send on stream
-        // and that why we use the stremifier libaryry 
+        // and that why we use the stremifier libariry 
+
         const promiseArray = req.files.map(async(file) => {
             const response = await new Promise ((resolve , reject) => {
+
                 // we create the stream here (still not sending the chunks)
                 // (just created the stream)
+
                 const stream = cloudinary.uploader.upload_stream({
                         resource_type : 'video' ,
                         folder : `private_chats/chat_${chat._id.toString()}`

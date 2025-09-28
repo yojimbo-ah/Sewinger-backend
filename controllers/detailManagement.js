@@ -10,6 +10,7 @@ import { fileURLToPath } from "url";
 import cloudinary from "../cloudinary.js";
 
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
+import { response } from "express";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,12 +151,14 @@ const putSocialMedias = async (req , res , next) => {
 
 const putProfileImage = async (req , res , next) => {
     const userId = req.user.id ;
-
+    
     try {
         const user = await User.findById(userId) ;
         if (!user) {
             return res.status(400).json({message : 'Couldnt find user with similair informations'})
         }
+
+        console.log(user) ;
 
         if (user.bio.profileImage) {
             const profileId = extractPublicId(user.bio.profileImage);
@@ -185,7 +188,7 @@ const putProfileImage = async (req , res , next) => {
             email : user.email ,
             firstName : user.name.firstName ,
             lastName : user.name.lastName ,
-            profileImage : user.bio.profileImage ,
+            profileImage : result.secure_url ,
             power : user.power ,
             sentRequest : reqt 
         }
@@ -197,7 +200,7 @@ const putProfileImage = async (req , res , next) => {
             userId : user._id.toString() ,
             firstName : user.name.firstName ,
             lastName : user.name.lastName ,
-            profileImage : user.bio.profileImage ,
+            profileImage : result.secure_url ,
             power : user.power ,
             sentRequest : reqt
         }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;

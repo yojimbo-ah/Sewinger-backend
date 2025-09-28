@@ -35,9 +35,7 @@ export const initSocket = (server) => {
     try {
 
       const userId = socket.userId ;
-      console.log('New client connected:', socket.id);
       const user = await User.findById(userId) ;
-      console.log(user) ;
 
       // connecting the user to his private chat so he can get private messages directly to his id
       // and might use it in the future for notification systems and stuff like that since it would be great
@@ -49,10 +47,8 @@ export const initSocket = (server) => {
       // since the user will be already in the room with all the other active users
       user.groupChats.map(group => {
         socket.join(`chat:${group}`) ;
-        console.log('joined chat : ' + group) ;
       })
 
-      console.log(userId + ' has joined his room') ;
 
       // this is for private chats handleling :
       addMessageToChat(io , socket) ;

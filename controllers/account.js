@@ -19,7 +19,8 @@ const confirmJwt = async (req , res , next) => {
             return res.status(400).json({message : 'invalid token' , valid : false}) ;
         }
         const {email , userId , lastName , firstName , power , sentRequest , profileImage} = decoded ;
-        console.log('ver ' + profileImage) ;
+        console.log('this is the ver confirm jwt') ;
+        console.log(decoded) ;
         const data = {
             email ,
             id : userId ,
