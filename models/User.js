@@ -41,6 +41,11 @@ const userSchema = new Schema({
         type : String ,
         required : true
     } ,
+    notification : {
+        type : Types.ObjectId ,
+        required : true ,
+        ref : 'Notification'
+    } ,
     password : {
         type : String ,
         required : true

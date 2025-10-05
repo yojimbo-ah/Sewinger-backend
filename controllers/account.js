@@ -1,11 +1,13 @@
 import User from '../models/User.js';
 import UserWaitConfirm from '../models/UserWaitConfirm.js';
+import UserWaitSellerConf from '../models/UserWaitSellerConf.js';
+import Notification from '../models/Notification.js';
 import { Reset } from '../models/Reset.js' ;
 import validator from 'validator'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
-import UserWaitSellerConf from '../models/UserWaitSellerConf.js';
+
 import transporter from '../service/emailTransporter.js';
 
 const confirmJwt = async (req , res , next) => {
@@ -35,13 +37,13 @@ const confirmJwt = async (req , res , next) => {
         return res.status(200).json({user : data , valid : true}) ;
 
     })
-}
-
+} ;
 
 const resetAccountVer = async (req , res , next) => {
     const token = req.params.token ;
     const password = req.body.password.trim() ;
     const confirmPassword = req.body.confirmPassword.trim() ;
+    
     let errors = {
         password : undefined ,
         confirmPassword : undefined ,
@@ -169,7 +171,7 @@ const login = async (req , res , next) => {
         }
         console.log(user._doc) ;
         const hashedPassword = user.password ;
-        const result = await bcrypt.compare(password , hashedPassword) ;
+        const result = bcrypt.compare(password , hashedPassword) ;
         if (result) {
             const token = jwt.sign({
                 email : email ,
@@ -308,6 +310,10 @@ const SignupVer = async (req , res , next) => {
             return res.status(400).json({message : 'invalid token , couldnt verify account'}) ;
         }
         if (status) {
+            const notification = new Notification({
+                notifications : []
+            }) 
+
             const user  = new User({
                 email : awaitingAccount.email ,
                 name : {
@@ -315,8 +321,10 @@ const SignupVer = async (req , res , next) => {
                     lastName : awaitingAccount.name.lastName
                 } ,
                 password : awaitingAccount.password ,
-                
-            })
+                notification : notification._id
+            }) ;
+
+            await notification.save() ;
             await user.save() ;
             await awaitingAccount.deleteOne() ;
             return res.status(200).json({messgae : 'Account created , welcome to Sewinger'}) ;
@@ -333,7 +341,6 @@ const putUserWaitSellerRequest = async (req , res , next) => {
     const userId = req.user.id ;
     
     const description  = req.body.description ;
-
 
     try {
 

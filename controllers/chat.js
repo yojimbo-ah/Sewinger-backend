@@ -599,7 +599,7 @@ const uploadVideosPrivate = async (req , res , next) => {
 
 const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
         , addPersonToGroup , getUserGroups , patchGroupDetails , uploadImagesPublic , uploadImagePrivate 
-        , uploadVideosPublic , uploadVideosPrivate
+        , uploadVideosPublic , uploadVideosPrivate 
     } ;
 
 export default chat ;

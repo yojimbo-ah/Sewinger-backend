@@ -11,7 +11,8 @@ dotenv.config() ;
 
 // all the data is handled by external cloud storage 
 // cloudinary for files (for now just pictures , in the future vids) 
-// mongodb handles the json storage format 
+// mongodb cloud storage (api handles the storage format)
+// they work together so evrything would be hosted in the cloud storage 
 
 // routes 
 import accountRouter from "./routes/account.js";
@@ -43,6 +44,9 @@ app.use((req , res , next) => {
     next()
 })
 
+// the routes of the app they are well seperated and you can check evry route
+// individually 
+
 app.use('/product' , productRouter) ;
 app.use('/account' , accountRouter);
 app.use('/cart' , cartRouter) ;
@@ -52,7 +56,7 @@ app.use('/chat' , chatRouter) ;
 app.use('/friend' , friendRouter) ;
 app.use('/detail' , detailRouter) ;
 
-
+// connect to the database with mongoose
 mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
     .then(result => {
         server.listen(process.env.LISTEN_AT || 3000 , () => {
