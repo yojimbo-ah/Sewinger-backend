@@ -10,5 +10,6 @@ const detailRouter = express.Router() ;
 detailRouter.patch('/name' , verifyJWT , detailManagement.patchChangeName) ;
 detailRouter.patch('/social' , verifyJWT , detailManagement.putSocialMedias) ;
 detailRouter.patch('/image' , verifyJWT , upload.single('image') , detailManagement.putProfileImage) ;
+detailRouter.get('/profile/:profileId' , verifyJWT , detailManagement.getUserProfile) ;
 
 export default detailRouter ;

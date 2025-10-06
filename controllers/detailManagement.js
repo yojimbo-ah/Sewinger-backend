@@ -3,17 +3,11 @@ import UserWaitSellerConf from "../models/UserWaitSellerConf.js";
 import validator from 'validator' ;
 import jwt from 'jsonwebtoken'
 
-import path from 'path' ;
-import fs from 'fs' ;
-import { fileURLToPath } from "url";
-
 import cloudinary from "../cloudinary.js";
-
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
-import { response } from "express";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import Product from "../models/Product.js";
+
 
 const patchChangeName = async (req , res , next) => {
     const userId = req.user.id ;
@@ -217,6 +211,97 @@ const putProfileImage = async (req , res , next) => {
     }
 }
 
-const detailManagement = {patchChangeName , putProfileImage , putSocialMedias} ;
+const getUserProfile = async (req, res , next) => {
+    // this controller doesnt have anything to do with the modofication of the profile of the user
+    // i just wanted to add it here since it has a realtion with the profiles and getting data of them
+
+    // work in progress....
+
+    const profileId = req.params.profileId ;
+    const userId = req.user.id ;
+    console.log('am at the profile sections') ;
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
+        }
+
+        const profile = await User.findById(profileId) ;
+        if (!profile) {
+            return res.status(400).json({message : 'Couldnt find profile error happened'}) ;
+        }
+        const profileUserFriendsIdsPromise = profile.friends.map(async (friendObj) => {
+            const friend = await User.findById(friendObj.friendId) ;
+            if (!friend) {
+                const error = new Error('Error happened , couldnt find user') ;
+                throw error ;
+            }
+
+            return {
+                name : friend.name ,
+                bio : friend.bio ,
+                _id : friend._id
+            }
+        })
+
+        // this will contain the users of the user we looking at his profile
+        const profileUserFriendsIds = await Promise.all(profileUserFriendsIdsPromise) ;
+
+        // this object will contain the data that will be shown in the frontend , the status of the user ,
+        // some of his products if he was a seller , some of his friends 
+
+        const newProfile = {
+            name : profile.name ,
+            bio : profile.bio ,
+            email : profile.email ,
+            status : undefined ,
+            sentBy : undefined ,
+            power : profile.power ,
+            products : undefined ,
+            friends : profileUserFriendsIds
+        }
+
+        if (profile.power === 'admin' || profile.power === 'seller') {
+            const profileUserProducts = await Product.find({creatorId : profile._id , valid : true}) ;
+            newProfile.products = profileUserProducts ;
+        }
+
+        let includes1 = false , includes2 = false  , sentBy ;
+
+        user.friends.map(user => {
+            if (user.friendId.toString() === profile._id.toString()) {
+                includes1 = true ;
+                return true ;
+            }
+        })
+
+        if (includes1) {
+            newProfile.status = 'friend' ;
+            return res.status(200).json({profile : newProfile })
+        }
+
+        user.friendsRequests.map(user => {
+            if (user.friendId.toString() === profile._id.toString()) {
+                newProfile.status = "pending" ; 
+                newProfile.sentBy = user.sentBy ;
+                includes2 = true ;
+                return true ;
+            }
+        })
+
+        if (includes2) {
+            return res.status(200).json({profile : newProfile})
+        }
+
+        newProfile.status = "normal" ;
+        return res.status(200).json({profile : newProfile }) ;
+
+    } catch (error) {
+        console.log(error) ;
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const detailManagement = {patchChangeName , putProfileImage , putSocialMedias , getUserProfile} ;
 
 export default detailManagement ;
