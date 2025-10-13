@@ -129,7 +129,6 @@ const getProducts = async (req , res , next) => {
     } catch (error) {
         return res.status(500).json({message : 'server again'}) ;
     }
-
 }
 
 const getUserProducts = async (req , res , next) => {
@@ -339,7 +338,8 @@ const getProductDetails = async (req , res , next) => {
 
         return res.status(200).json({product : product , creator : {
             name : creator.name ,
-            bio : creator.bio 
+            bio : creator.bio ,
+            _id : creator._id
         }}) ;
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error , try again later'}) ;

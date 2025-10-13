@@ -219,7 +219,7 @@ const getUserProfile = async (req, res , next) => {
 
     const profileId = req.params.profileId ;
     const userId = req.user.id ;
-    console.log('am at the profile sections') ;
+    
     try {
         const user = await User.findById(userId) ;
         if (!user) {
@@ -266,7 +266,7 @@ const getUserProfile = async (req, res , next) => {
             newProfile.products = profileUserProducts ;
         }
 
-        let includes1 = false , includes2 = false  , sentBy ;
+        let includes1 = false , includes2 = false  ;
 
         user.friends.map(user => {
             if (user.friendId.toString() === profile._id.toString()) {

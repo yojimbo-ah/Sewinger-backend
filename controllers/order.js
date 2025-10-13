@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 
 const putOrder = async (req , res , next) => {
     const userId = req.user.id ;
-
+    console.log('am at the order section') ;
     try {
         const user = await User.findById(userId) ;
 
@@ -52,6 +52,7 @@ const putOrder = async (req , res , next) => {
         })
         return res.status(200).json({message : 'order had been created'}) ;
     } catch (error) {
+        console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
     }
 

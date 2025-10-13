@@ -4,6 +4,14 @@ import mongoose , {Schema , Types} from 'mongoose' ;
 // started workin on the notifications , might change //
 //////         in the future (probably)       /////////
 //////////////////////////////////////////////////////
+
+// after searching , the notifications of the chat app wouldnt be saved here since it is overkill ,
+// it would be for admin validations , orders , users when they buy your products , 
+// but for chats it will be hanedeled only in the frontend as push notifications in the react app 
+// else then that it still might change in the future 
+
+
+
 const notificationModel = new Schema({
     notifications : [{
         message : {
@@ -13,7 +21,7 @@ const notificationModel = new Schema({
         type : {
             required : true ,
             type : String ,
-            enum : ['chat_private' , 'chat_public' , 'friend_request' , 'accepted_request']
+            enum : ['friend_request' , 'accepted_request' , ]
         } ,
         read : {
             type : Boolean ,
