@@ -1,2 +1,26 @@
+# Dependencies
+node_modules/
+
+# Environment variables
 .env
-node-modules/
+.env.local
+.env.*.local
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Optional: other common files to ignore
+coverage/
+.cache/
