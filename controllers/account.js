@@ -290,7 +290,7 @@ const signup = async (req , res , next) => {
             from : `Sewinger team <${process.env.EMAIL}>` ,
             to : email ,
             subject : 'account creation' ,
-            html : `<p><b>confirm your account creation : <a href="http://localhost:5173/account/signup/${token}">confirm</a></b></p>`
+            html : `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         })
 
         return res.status(200).json({message : 'Account has been created'})
