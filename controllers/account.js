@@ -114,7 +114,7 @@ const resetAccount = async (req , res , next) => {
             to : user.email ,
             subject : 'password reseting' ,
             html : `<p> reset the password
-            <a href="http://localhost:5173/account/forgot/${randomString}">click</a>
+            <a href="${process.env.FRONTEND_URL}/account/forgot/${randomString}">click</a>
             </p>`
         })
         return res.status(200).json({message : 'reset token has been created'}) ; 
