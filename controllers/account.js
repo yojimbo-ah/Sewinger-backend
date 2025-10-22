@@ -286,13 +286,13 @@ const signup = async (req , res , next) => {
         })
 
         await user.save()
-        await transporter.sendMail({
+        transporter.sendMail({
             from : `Sewinger team <${process.env.EMAIL}>` ,
             to : email ,
             subject : 'account creation' ,
             html : `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         })
-
+        console.log("email has been sent") ;
         return res.status(200).json({message : 'Account has been created'})
     } catch (error) {
         return res.status(500).json({message : 'Server error'}) ;
