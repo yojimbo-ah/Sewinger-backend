@@ -303,7 +303,7 @@ const signup = async (req , res , next) => {
         console.log(error.message) ;
         console.log(error) ;
         console.log(error) ;
-        return res.status(500).json({message : 'Server error'}) ;
+        return res.status(500).json({error}) ;
     }
 
 }
