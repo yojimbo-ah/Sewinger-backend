@@ -285,6 +285,7 @@ const signup = async (req , res , next) => {
         })
 
         await user.save()
+        /*
         transporter.sendMail({
             from : `Sewinger team <${process.env.EMAIL}>` ,
             to : email ,
@@ -300,6 +301,7 @@ const signup = async (req , res , next) => {
         if (emailMessage.accepted) {
             console.log('Email message was accepted') ;
         }
+        */
 
         
         console.log("email has been sent") ;
