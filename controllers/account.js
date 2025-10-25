@@ -299,6 +299,9 @@ const signup = async (req , res , next) => {
         console.log("email has been sent") ;
         return res.status(200).json({message : 'Account has been created'})
     } catch (error) {
+        console.log('inside the error block') ;
+        console.log(error.message) ;
+        console.log(error) ;
         console.log(error) ;
         return res.status(500).json({message : 'Server error'}) ;
     }
