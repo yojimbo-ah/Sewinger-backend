@@ -171,7 +171,8 @@ const login = async (req , res , next) => {
         }
         console.log(user._doc) ;
         const hashedPassword = user.password ;
-        const result = bcrypt.compare(password , hashedPassword) ;
+        const result = await bcrypt.compare(password , hashedPassword) ;
+
         if (result) {
             const token = jwt.sign({
                 email : email ,
@@ -183,12 +184,15 @@ const login = async (req , res , next) => {
                 sentRequest : reqt
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
-            transporter.sendMail({
+            const emailSent = await transporter.sendMail({
                 from : `Sewinger team ${process.env.EMAIL}` ,
                 to : email ,
                 subject : 'Account login' ,
                 html : '<p>Youre account has been logged in , verify if it was you </p>'
             })            
+            if (emailSent.accepted) {
+                console.log(emailSent.accepted) ;
+            }
 
             return res.status(200).json({message : 'Connected successfuly' , token : token , user : {
                 email : user.email ,
@@ -198,6 +202,7 @@ const login = async (req , res , next) => {
                 profileImage : user.bio.profileImage
             }});
         } 
+
         errors.password = 'invalid password' ;
         res.status(400).json({errors : errors}) ;
 
@@ -298,6 +303,7 @@ const signup = async (req , res , next) => {
             console.error('Error code:', error.code);
             console.error('Full error:', error);
         });
+        
         if (emailMessage.accepted) {
             console.log('Email message was accepted') ;
         }
@@ -310,6 +316,8 @@ const signup = async (req , res , next) => {
         console.log('inside the error block') ;
         console.log(error.message) ;
         console.log(error) ;
+        console.log('inside the error block') ;
+        console.log(error.message) ;
         console.log(error) ;
         return res.status(500).json({error}) ;
     }
