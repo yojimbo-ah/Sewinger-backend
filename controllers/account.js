@@ -7,6 +7,7 @@ import validator from 'validator'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
+import { resend } from '../service/emailTransporter.js';
 
 import transporter from '../service/emailTransporter.js';
 
@@ -184,15 +185,14 @@ const login = async (req , res , next) => {
                 sentRequest : reqt
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
-            const emailSent = await transporter.sendMail({
-                from : `Sewinger team ${process.env.EMAIL}` ,
-                to : email ,
-                subject : 'Account login' ,
-                html : '<p>Youre account has been logged in , verify if it was you </p>'
-            })            
-            if (emailSent.accepted) {
-                console.log(emailSent.accepted) ;
-            }
+            const result = await resend.emails.send({
+                from : `Sewinger team <${process.env.EMAIL}>` ,
+                to : user.email ,
+                subject: 'Hello from Resend!',
+                html: '<p>This is your first email sent with Resend!</p>'
+            }) ;
+
+            console.log('email has been sent') ;
 
             return res.status(200).json({message : 'Connected successfuly' , token : token , user : {
                 email : user.email ,
