@@ -190,9 +190,6 @@ const login = async (req , res , next) => {
                 subject : 'Account login' ,
                 html : '<p>Youre account has been logged in , verify if it was you </p>'
             })            
-            if (emailSent.accepted) {
-                console.log(emailSent.accepted) ;
-            }
 
             return res.status(200).json({message : 'Connected successfuly' , token : token , user : {
                 email : user.email ,
