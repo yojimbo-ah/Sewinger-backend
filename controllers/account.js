@@ -186,7 +186,7 @@ const login = async (req , res , next) => {
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
             const result = await resend.emails.send({
-                from : `Sewinger team <${process.env.EMAIL}>` ,
+                from : `Sewinger team <onboarding@resend.dev>` ,
                 to : user.email ,
                 subject: 'Hello from Resend!',
                 html: '<p>This is your first email sent with Resend!</p>'
@@ -290,24 +290,12 @@ const signup = async (req , res , next) => {
         })
 
         await user.save()
-        /*
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : email ,
-            subject : 'account creation' ,
-            html : `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
-        }).then(info => {
-            console.log('✅ Email sent successfully:', info.messageId);
-        }).catch(error => {
-            console.error('❌ Email failed:', error.message);
-            console.error('Error code:', error.code);
-            console.error('Full error:', error);
-        });
-        
-        if (emailMessage.accepted) {
-            console.log('Email message was accepted') ;
-        }
-        */
+        const result = await resend.emails.send({
+            from : `Sewinger team <onboarding@resend.dev>` ,
+            to : user.email ,
+            subject: 'Hello from Resend!',
+            html: '<p>This is your first email sent with Resend!</p>'
+        }) ;
 
         
         console.log("email has been sent") ;
