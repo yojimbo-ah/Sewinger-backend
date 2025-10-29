@@ -192,6 +192,7 @@ const login = async (req , res , next) => {
                 html: '<p>This is your first email sent with Resend!</p>'
             }) ;
 
+            console.log(response) ;
             if (response.data) {
                 console.log(`response ID : ${response.data.id}`) ;
             }
@@ -301,11 +302,10 @@ const signup = async (req , res , next) => {
             html: '<p>This is your first email sent with Resend!</p>'
         }) ;
 
+        console.log(response) ;
         if (response.data) {
             console.log(`response ID : ${response.data.id}`) ;
         }   
-
-
         
         console.log("email has been sent") ;
         return res.status(200).json({message : 'Account has been created'})
