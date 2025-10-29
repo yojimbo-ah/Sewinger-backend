@@ -185,12 +185,16 @@ const login = async (req , res , next) => {
                 sentRequest : reqt
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
 
-            const result = await resend.emails.send({
+            const response = await resend.emails.send({
                 from : `Sewinger team <onboarding@resend.dev>` ,
                 to : user.email ,
                 subject: 'Hello from Resend!',
                 html: '<p>This is your first email sent with Resend!</p>'
             }) ;
+
+            if (response.data) {
+                console.log(`response ID : ${response.data.id}`) ;
+            }
 
             console.log('email has been sent') ;
 
@@ -290,12 +294,17 @@ const signup = async (req , res , next) => {
         })
 
         await user.save()
-        const result = await resend.emails.send({
+        const response = await resend.emails.send({
             from : `Sewinger team <onboarding@resend.dev>` ,
             to : user.email ,
             subject: 'Hello from Resend!',
             html: '<p>This is your first email sent with Resend!</p>'
         }) ;
+
+        if (response.data) {
+            console.log(`response ID : ${response.data.id}`) ;
+        }   
+
 
         
         console.log("email has been sent") ;
