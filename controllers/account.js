@@ -295,11 +295,13 @@ const signup = async (req , res , next) => {
         })
 
         await user.save()
+        // this email sending here works only on my private email ,
+        // will be fixed in the future 
         const response = await resend.emails.send({
             from : `Sewinger team <onboarding@resend.dev>` ,
             to : user.email ,
             subject: 'Hello from Resend!',
-            html: '<p>This is your first email sent with Resend!</p>'
+            html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         }) ;
 
         console.log(response) ;
