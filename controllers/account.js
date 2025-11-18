@@ -323,14 +323,15 @@ const signup = async (req , res , next) => {
             subject: 'Hello from Resend!',
             html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         }) ;
-         */
-
         console.log(response) ;
         if (response.data) {
             console.log(`response ID : ${response.data.id}`) ;
         }   
         
         console.log("email has been sent") ;
+         */
+
+
         return res.status(200).json({message : 'Account has been created'})
     } catch (error) {
         console.log('inside the error block') ;
