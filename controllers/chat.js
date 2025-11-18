@@ -6,10 +6,8 @@ import GroupChat from "../models/GroupChat.js";
 import cloudinary from "../cloudinary.js";
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 import { getIO } from "../socket.js";
-
 import { ObjectId } from "mongodb";
 import streamifier from 'streamifier' ;
-import { Socket } from "socket.io";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -312,6 +310,7 @@ const patchGroupDetails = async (req , res , next) => {
 // there exist other approaches but this is great method and it works well with the multer 
 // cloudinary api setup
 // (same for the uploadImagePrivate)
+
 const uploadImagesPublic = async (req , res , next) => {
     const userId = req.user.id ;
     const chatId = req.body.chatId ;
@@ -436,11 +435,13 @@ const uploadImagePrivate = async (req , res , next) => {
         await chat.save() ;
 
         imagesMessages.forEach(message => {
+
             //  here we sent to two rooms since in the private chat the logique of sending
             // messages is diffrent then public , because in public all the users join the same room ,
             // and we just broadcast it to all the users in the room , but in the private ,
             // the user just joins one room with his id , that id all his freinds send messages 
             // to the same room so that why we send two emits one with the userId and one with the friendId
+            
             io.to(`user:${userId}`).emit('receive_message', message) ;
             io.to(`user:${friendId}`).emit('receive_message', message) ;
         })
