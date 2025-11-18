@@ -346,5 +346,9 @@ const getProductDetails = async (req , res , next) => {
     }
 }
 
+const getProductComments = async (req , res , next) => {
+    
+}
+
 const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete , getProductDetails} ;
 export default products ;

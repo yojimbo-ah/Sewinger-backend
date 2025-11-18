@@ -1,8 +1,7 @@
 import Message from "../models/Message.js";
 import Chat from "../models/Chat.js";
 import MessageGroup from "../models/MessageGroup.js";
-import GroupChat from "../models/GroupChat.js";
-import cloudinary from "../cloudinary.js";
+import GroupChat from "../models/GroupChat.js" ;
 
 
 
@@ -21,7 +20,7 @@ const addMessageToChat = (io , socket) => {
             io.to(`user:${friendId}`).emit('receive_message', newMessage._doc)
 
             const chat = await Chat.findOne({
-                users: { $all: [userId, friendId] },
+                users: { $all: [userId, friendId] } ,
                 $expr: { $eq: [{ $size: "$users" }, 2] }
             })
 

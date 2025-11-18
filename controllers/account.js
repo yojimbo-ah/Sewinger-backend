@@ -282,9 +282,24 @@ const signup = async (req , res , next) => {
             return res.status(409).json({errors : errors});
         }
 
+        // creating the notification first since i need the Id :
+        const notification = new Notification({
+            notifications : []
+        }) ;
+
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
-        const user = new UserWaitConfirm({
+        const user  = new User({
+                email : awaitingAccount.email ,
+                name : {
+                    firstName : firstName ,
+                    lastName : lastName
+                } ,
+                password : hashedPassword ,
+                notification : notification._id
+            }) ;
+
+        /*const user = new UserWaitConfirm({
             name : {
                 firstName : firstName ,
                 lastName : lastName
@@ -293,16 +308,22 @@ const signup = async (req , res , next) => {
             password : hashedPassword ,
             token : token
         })
+        */
 
-        await user.save()
+        await user.save() ;
         // this email sending here works only on my private email ,
         // will be fixed in the future 
+        // will be fixed by the change of the email domain 
+        // for now it is not ready even tho the site is hosted 
+
+        /*
         const response = await resend.emails.send({
             from : `Sewinger team <onboarding@resend.dev>` ,
             to : user.email ,
             subject: 'Hello from Resend!',
             html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         }) ;
+         */
 
         console.log(response) ;
         if (response.data) {
