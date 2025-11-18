@@ -290,7 +290,7 @@ const signup = async (req , res , next) => {
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
         const user  = new User({
-                email : awaitingAccount.email ,
+                email : email ,
                 name : {
                     firstName : firstName ,
                     lastName : lastName
