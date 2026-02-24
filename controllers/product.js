@@ -123,6 +123,7 @@ const __dirname = path.dirname(__filename);
     }
 
 const getProducts = async (req , res , next) => {
+
     try {
         const products = await Product.find({valid : true}) ;
         return res.status(200).json({products : products}) ;
@@ -346,9 +347,48 @@ const getProductDetails = async (req , res , next) => {
     }
 }
 
-const getProductComments = async (req , res , next) => {
+const putComment = async (req , res , next) => {
+    const userId = req.user.id ;
+    const productId = req.params.productId ;
+    const commentDetails = req.body.commentDetails ;
     
+    if (commentDetails.comment.length > 200 ) {
+        return res.status(400).json({message : 'Invalid length of comment'}) ;
+    }
+    if (!(0 <= commentDetails.rating && commentDetails.rating <= 5)) {
+        return res.status(400).json({message : 'Invalid rating'}) ;
+    }
+
+    try {
+        const product = Product.findById(productId) ;
+        if (!product) {
+            return res.status(400).json({message : 'Couldnt find product'}) ;
+        } 
+        let alreadyCommented = false ;
+        product.comments.forEach(comment => {
+            if (comment.commenterId.toString() === userId) {
+                alreadyCommented = true ;
+                return true ;
+            }
+        })
+
+        if (alreadyCommented) {
+            return res.status(400).json({message : 'You already commented on this product'}) ;
+        }
+        product.comments.push({
+            comment : commentDetails.comment ,
+            rating : commentDetails.rating ,
+            commenterId : userId
+        })   
+        await product.save() ;
+        
+        return res.status(200).json({message : 'Comment has been added'}) ;
+    } catch (err) {
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
 }
 
-const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete , getProductDetails} ;
+const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete , getProductDetails
+    , putComment
+} ;
 export default products ;

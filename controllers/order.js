@@ -61,7 +61,7 @@ const putOrder = async (req , res , next) => {
 const getOrderInvoice = async (req , res , next) => {
     const userId = req.user.id ;
     const orderId = req.params.orderId ;
-    console.log('am herer')
+
     try {
         const user = await User.findById(userId) ;
         console.log(user) ;

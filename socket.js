@@ -12,7 +12,7 @@ export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: process.env.FRONTEND_URL ,
-      methods: ['GET', 'POST' , 'PUT' , 'PATCH' , 'DELETE']
+      methods: ['GET', 'POST' , 'PUT' , 'PATCH' , 'DELETE'] 
     }
   });
   
@@ -36,7 +36,9 @@ export const initSocket = (server) => {
 
       const userId = socket.userId ;
       const user = await User.findById(userId) ;
-
+      if (!user) {
+        throw new Error('Couldnt find user with similair data') ;
+      }
       // connecting the user to his private chat so he can get private messages directly to his id
       // and might use it in the future for notification systems and stuff like that since it would be great
       // and it the best and easiest method for real time updating for rest api app

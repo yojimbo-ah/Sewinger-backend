@@ -96,7 +96,7 @@ const patchChangeName = async (req , res , next) => {
 const putSocialMedias = async (req , res , next) => {
     // this controller is not working for now , since the schema is not compatible yet
     // it would be chnaged in the future
-    // (but the logic is correct)
+    
     const userId = req.user.id ;
     const {facebook , instagram , github} = req.body.socials ;
 

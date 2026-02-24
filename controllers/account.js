@@ -289,17 +289,17 @@ const signup = async (req , res , next) => {
 
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
-        const user  = new User({
-                email : email ,
-                name : {
-                    firstName : firstName ,
-                    lastName : lastName
-                } ,
-                password : hashedPassword ,
-                notification : notification._id
-            }) ;
+        // const user  = new User({
+        //         email : email ,
+        //         name : {
+        //             firstName : firstName ,
+        //             lastName : lastName
+        //         } ,
+        //         password : hashedPassword ,
+        //         notification : notification._id
+        //     }) ;
 
-        /*const user = new UserWaitConfirm({
+        const user = new UserWaitConfirm({
             name : {
                 firstName : firstName ,
                 lastName : lastName
@@ -308,7 +308,6 @@ const signup = async (req , res , next) => {
             password : hashedPassword ,
             token : token
         })
-        */
 
         await user.save() ;
         // this email sending here works only on my private email ,
@@ -323,14 +322,15 @@ const signup = async (req , res , next) => {
             subject: 'Hello from Resend!',
             html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         }) ;
-         */
-
         console.log(response) ;
         if (response.data) {
             console.log(`response ID : ${response.data.id}`) ;
         }   
         
         console.log("email has been sent") ;
+         */
+
+
         return res.status(200).json({message : 'Account has been created'})
     } catch (error) {
         console.log('inside the error block') ;
@@ -345,7 +345,13 @@ const signup = async (req , res , next) => {
 }
 
 const SignupVer = async (req , res , next) => {
-    const status = req.body.status ;
+    // status here it supposed to be a boolen if it true then the user want to create the account
+    // else he doesnt 
+    // we check the token if we have a a awaiting account with simailair token in the database
+    // if not then we passed the allowed time to create an account after sending the singup form
+    // else you account is created normally
+    
+    const status = !!req.body.status ;
     const token = req.params.token
     try {
         const awaitingAccount = await UserWaitConfirm.findOne({token : token}) ;

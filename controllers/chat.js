@@ -498,6 +498,7 @@ const uploadVideosPublic = async (req , res , next) => {
                 streamifier.createReadStream(file.buffer).pipe(stream) ;
 
             }) ;
+            
             const newMessage = new MessageGroup({
                 senderId : userId ,
                 type : 'video' ,
@@ -570,12 +571,17 @@ const uploadVideosPrivate = async (req , res , next) => {
                 streamifier.createReadStream(file.buffer).pipe(stream) ;
 
             }) ;
+            //
+
+
             const newMessage = new Message({
                 senderId : userId ,
                 reciverId : friendId ,
                 type : 'video' ,
                 message : response.secure_url
-            })
+            }) ;
+
+            
             await newMessage.save() ;
             chat.messages.push(newMessage._id) ;
             return newMessage._doc ;
