@@ -13,6 +13,7 @@ productRouter.get('/user/:valid' , verifyJWT , products.getUserProducts) ;
 productRouter.patch('/edit/:productId' , verifyJWT , upload.array("images" , IMAGES_COUNT) , products.updateUserProduct) ;
 productRouter.delete('/delete/:productId' , verifyJWT , products.productDelete) ;
 productRouter.get('/details/:productId' , products.getProductDetails) ;
+productRouter.put('/details/cooment/:productId' , products.putComment) ;
 
 
 export default productRouter ;

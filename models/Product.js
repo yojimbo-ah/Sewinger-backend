@@ -11,6 +11,32 @@ const productSchema = new Schema({
         type : String ,
         required : true
     } ,
+    comments : [{
+        comment : {
+            type : String ,
+            length : 200 ,
+            requierd : true
+        } ,
+        rating : {
+            type : Number ,
+            min : 0 ,
+            max : 5 ,
+            validator : {
+                validator : Number.isInteger
+            } ,
+            required : true
+        } , 
+        commenterId : {
+            type : Types.ObjectId ,
+            required : true ,
+            ref : 'User'
+        } ,
+        addedAt : {
+            type : Date ,
+            default : Date.now ,
+            required : true
+        }
+    }] ,
     categories : [{
         type : String ,
         required : true 

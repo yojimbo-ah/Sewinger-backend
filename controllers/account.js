@@ -289,17 +289,17 @@ const signup = async (req , res , next) => {
 
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
-        const user  = new User({
-                email : email ,
-                name : {
-                    firstName : firstName ,
-                    lastName : lastName
-                } ,
-                password : hashedPassword ,
-                notification : notification._id
-            }) ;
+        // const user  = new User({
+        //         email : email ,
+        //         name : {
+        //             firstName : firstName ,
+        //             lastName : lastName
+        //         } ,
+        //         password : hashedPassword ,
+        //         notification : notification._id
+        //     }) ;
 
-        /*const user = new UserWaitConfirm({
+        const user = new UserWaitConfirm({
             name : {
                 firstName : firstName ,
                 lastName : lastName
@@ -308,7 +308,6 @@ const signup = async (req , res , next) => {
             password : hashedPassword ,
             token : token
         })
-        */
 
         await user.save() ;
         // this email sending here works only on my private email ,
@@ -346,7 +345,13 @@ const signup = async (req , res , next) => {
 }
 
 const SignupVer = async (req , res , next) => {
-    const status = req.body.status ;
+    // status here it supposed to be a boolen if it true then the user want to create the account
+    // else he doesnt 
+    // we check the token if we have a a awaiting account with simailair token in the database
+    // if not then we passed the allowed time to create an account after sending the singup form
+    // else you account is created normally
+    
+    const status = !!req.body.status ;
     const token = req.params.token
     try {
         const awaitingAccount = await UserWaitConfirm.findOne({token : token}) ;
