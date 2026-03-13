@@ -11,7 +11,7 @@ const productSchema = new Schema({
         type : String ,
         required : true
     } ,
-    comments : [{
+    reviews : [{
         comment : {
             type : String ,
             length : 200 ,
@@ -72,6 +72,22 @@ const productSchema = new Schema({
         type : Boolean ,
         requierd : true ,
         default : true
+    } ,
+    // this here is the overall rating of the product each person who buys product ,
+    // can rate it out of 5 on star level 
+    ratings : {
+        count : {
+            type : Number ,
+            required : true ,
+            default : 0
+        } ,
+        average : {
+            type : Number ,
+            required : true ,
+            default : 0 ,
+            min : 0 ,
+            max : 5
+        }
     }
 
 } , {timestamps : true})

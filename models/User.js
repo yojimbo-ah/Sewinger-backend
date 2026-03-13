@@ -39,7 +39,8 @@ const userSchema = new Schema({
     } ,
     email : {
         type : String ,
-        required : true
+        required : true ,
+        unique : true
     } ,
     notification : {
         type : Types.ObjectId ,
@@ -76,7 +77,7 @@ const userSchema = new Schema({
     power : { 
         type : String ,
         required : true ,
-        default : 'client' ,
+        default : 'client' ,  
         enum : ['admin' , 'client' , 'seller']
     }, 
     orders : [{

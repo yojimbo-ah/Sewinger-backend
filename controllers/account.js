@@ -8,8 +8,11 @@ import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
 import { resend } from '../service/emailTransporter.js';
-
+import cloudinary from '../cloudinary.js';
 import transporter from '../service/emailTransporter.js';
+import extractPublicId from '../helperFunctions/cloudinaryImageId.js';
+import streamifier from 'streamifier' ;
+;
 
 const confirmJwt = async (req , res , next) => {
     const authHeader = req.headers.authorization ;
@@ -127,8 +130,8 @@ const resetAccount = async (req , res , next) => {
 }
 
 const login = async (req , res , next) => {
-    const email = req.body.email ;
-    const password = req.body.password ;
+    const email = req.body.email ||  '' ;
+    const password = req.body.password || '' ;
 
     let errors = {
         email : undefined ,
@@ -318,7 +321,7 @@ const signup = async (req , res , next) => {
         /*
         const response = await resend.emails.send({
             from : `Sewinger team <onboarding@resend.dev>` ,
-            to : user.email ,
+            to : user.email.toString() ,
             subject: 'Hello from Resend!',
             html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
         }) ;
@@ -326,7 +329,6 @@ const signup = async (req , res , next) => {
         if (response.data) {
             console.log(`response ID : ${response.data.id}`) ;
         }   
-        
         console.log("email has been sent") ;
          */
 
@@ -388,10 +390,20 @@ const SignupVer = async (req , res , next) => {
 }
 
 const putUserWaitSellerRequest = async (req , res , next) => {
-    const userId = req.user.id ;
-    
-    const description  = req.body.description ;
+    //this will put such that the user can add a folder
+    // that contains pictures , vids , pdfs and stuff like that 
+    // the admins can download that folder and rectify it 
+    // to check if they let the user augmenet from being a clien -> seller 
+    // in the shop
 
+    // the description would the describe the files the user attached
+    // when sending the request to be a seller
+    const userId = req.user.id ;
+    const description  = req.body.description ;
+    const files = req.files ;
+    // we will use this array as memory storage in case of failure so we can delete
+    // what we saved into cloudinary servers
+    const uploadedData = [] ;
     try {
 
         if (!validator.isLength(description , {min : 50 , max : 500})) {
@@ -409,17 +421,65 @@ const putUserWaitSellerRequest = async (req , res , next) => {
         if (request) {
             return res.status(400).json({message : 'You already have a request , it still pending for admin confimation'}) ;
         }
+        // handeling the files , req.files will the contain the iles
+        // since we user memorystorage in the multer setup 
+        // se we have to handle the uploading to the cloud in the route
+        // beacause i think that gaves us more freedom and let us reuse 
+        // the multer setup if we need it else where
+        if (files.length === 0) {
+            return res.status(400).json({message : 'You didnt attatch any file to the seller request'}) ;
+        }
 
-        const pendingRequest = new UserWaitSellerConf({
-            description : description ,
-            userId : userId
+        const promiseArray = req.files.map(async(file) => {
+            const response = await new Promise ((resolve , reject) => {
+                const stream = cloudinary.uploader.upload_stream({
+                        // since we have mixed type of file being sent from the frotned we must handle both
+                        // se we chek if it either a image by checking the mimetype field inside the file
+                        // it would start by image/...etc
+                        resource_type : file.mimetype.startsWith('image/') ? 'image' : 'raw' ,
+                        folder : `seller_requests/seller_${user._id.toString()}` ,
+                        use_filename : true , 
+                        unique_filename : false
+                    } ,
+                    (error , result) => {
+                        // in case of error happening
+                        if (error) reject(error) ;
+                        // resolving at the end
+                        if (result) resolve(result)
+                    }
+                ) ;
+                // sending the chunks here from out stream and creating them from out buffer
+                streamifier.createReadStream(file.buffer).pipe(stream) ;
+
+            }) ;
+            const fileObj = {
+                url : response.secure_url ,
+                type : file.mimetype.startsWith('image/') ? 'image' : 'raw'  
+            }
+            uploadedData.push(fileObj) ;
+            return fileObj ;
         })
 
-        await user.save() ;
+        const handlledFilesArray = await Promise.all(promiseArray) || [] ;
+        const pendingRequest = new UserWaitSellerConf({
+            description : description ,
+            userId : userId ,
+            files : handlledFilesArray
+        })
         await pendingRequest.save() ;
         return res.status(200).json({message : 'request has been sent succussfully'})
 
     } catch (error) {
+        // in case of error we must destroy the files 
+        // in case they were saved 
+        if (uploadedData.length > 0) {
+            // then we uploaded files but we didnt get to save the refrences in the database
+            const result = uploadedData.map(async(file) => {
+                const publicId = extractPublicId(file.url) ;
+                await cloudinary.uploader.destroy(`seller_requests/seller_${req.user.id}/${publicId}`)
+            })
+            await Promise.all(result) ;
+        }
         console.log(error)
         return res.status(500).json({message : 'Iternal server error'}) ;
     }

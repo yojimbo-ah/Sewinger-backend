@@ -47,11 +47,6 @@ const getUserWhoBoughtMyProduct = async (req , res , next) => {
     const buyerId = req.params.buyerId ;
     const productId = req.params.productId ;
 
-    console.log('userId : ' + userId) ;
-    console.log('I got here') ;
-
-    console.log(buyerId) ;
-    console.log(productId) ;
     try {
         const user = await User.findById(userId) ;
         if (!user) {

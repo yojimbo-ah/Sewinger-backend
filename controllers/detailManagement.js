@@ -145,7 +145,7 @@ const putSocialMedias = async (req , res , next) => {
 
 const putProfileImage = async (req , res , next) => {
     const userId = req.user.id ;
-    
+    req.memorystorage = [] ;
     try {
         const user = await User.findById(userId) ;
         if (!user) {
@@ -206,6 +206,7 @@ const putProfileImage = async (req , res , next) => {
             }) ;
 
     } catch (error) {
+        next(error) ;
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
     }

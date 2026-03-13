@@ -1,7 +1,8 @@
 import express from "express";
 import account from "../controllers/account.js";
 import { verifyJWT } from "../middleware/verifyJWT.js";
-
+import { uploadMixed } from "../middleware/uploadMixed.js";
+const MAX_UPLOAD = 10 ;
 const accountRouter = express.Router() ;
 
 // this is the account managements routes and verification of json wev tokens
@@ -12,7 +13,7 @@ accountRouter.put('/signup/:token' , account.SignupVer);
 accountRouter.post('/forgot' , account.resetAccount);
 accountRouter.patch('/forgot/:token' , account.resetAccountVer);
 accountRouter.post('/jwtVer' , account.confirmJwt);
-accountRouter.put('/request/seller' , verifyJWT , account.putUserWaitSellerRequest)
+accountRouter.put('/request/seller' , verifyJWT , uploadMixed.array('files' , MAX_UPLOAD) , account.putUserWaitSellerRequest)
 
 
 export default accountRouter ;
