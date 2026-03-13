@@ -4,9 +4,6 @@ import mongoose , { Schema , Types} from 'mongoose' ;
 //STILL WORKING ON IT , MIGHT CHANGE IT///
 /////////////////////////////////////////
 
-// there is two types text and images (int the future vids also)
-// 
-
 const chatSchema = new Schema ({
     users : [{
         type : Types.ObjectId ,

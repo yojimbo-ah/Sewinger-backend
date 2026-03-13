@@ -1,129 +1,134 @@
 import User from "../models/User.js";
 import Product from "../models/Product.js";
 import validator from 'validator' ;
-import path from 'path' ;
-import fs from 'fs' ;
-import { fileURLToPath } from "url";
 import cloudinary from "../cloudinary.js";
 import transporter from "../service/emailTransporter.js";
-
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
 
 
     const PostProduct = async (req , res , next) => {
         const userId = req.user.id ;
         const productDetail = req.body ;
-
-        if(!userId) {
+        // memory storage for uploaded data into the cloud in case of failure so we can retrieve them and
+        // remove them from cloudinary servers
+        req.memorystorage = [] ;
+        if (!userId) {
             return res.status(400).json({message : 'invalid user'}) ;
         }
+        try {
+            const user = await User.findById(userId) ;
+            if (!user) {
+                return res.status(400).json({message : 'invalid user'}) ;
+            }
 
-        const user = await User.findById(userId) ;
+            if (user.power !== 'admin' || user.power !== 'seller') {
+                return res.status(400).json({message : 'You are not allowed to create products'}) ;
+            }
 
-        if (!user) {
-            return res.status(400).json({message : 'invalid user , you are not allowed to create product'}) ;
+            let status = false ;
+            let errors = {
+                name : undefined ,
+                price : undefined ,
+                description : undefined ,
+                type : undefined ,
+                availbleItems : undefined ,
+                categories : undefined ,
+                images : undefined
+            }
+
+            const name = productDetail.name.trim() || '' ;
+            const price = Number(productDetail.price) ;
+            const description = productDetail.description.trim() || '' ;
+            const type = productDetail.type.trim() || '' ;
+            const availbleItems = Math.floor(Number(productDetail.quantity)) ;
+            const categories = productDetail.categories ;
+
+
+            const images = req.files ;
+
+
+            if (validator.isEmpty(name)) {
+                errors.name = 'cant leave the name empty' ;
+                status = true
+            }
+            if(!validator.isLength(name , {min : 3 , max : 40})) {
+                errors.name = 'name should be between 3 and 20 characters' ;
+                status = true ;
+            } 
+            if (validator.isEmpty(description)) {
+                errors.description = 'cant leave the description empty' ;
+                status = true ;
+            }
+            if (!validator.isLength(description , {min : 10 , max : 150})) {
+                errors.description = 'the description must be between 10 and 80 characters' ;
+                status = true ;
+            }
+
+            if (price <= 0) {
+                errors.price = 'invalid price' ;
+                status = true ;
+            }
+            if (type !== 'raw' && type !== 'custom' && type !== 'normal') {
+                errors.type = 'invalid type' ;
+                status = true ;
+            }
+            if (availbleItems <= 0) {
+                errors.availbleItems = 'cant have minus availble items' ;
+                status = true
+            }
+            if (images.length > 4 || images.length < 1) {
+                errors.images = 'you are allowed to post only 4 images ' ;
+                status = true ;
+            }
+
+            if (status) {
+                return res.status(400).json({message : 'error validating' , errors : errors}) ;
+            }
+            // what does valid do here , it works as variable if the user was admin then the product is valid directly else is
+            // not and needs admin verification
+            let valid = false ;
+
+            if (user.power === 'admin') {
+                valid = true ;
+            }
+
+        
+            const promiseUrls = images.map(async (file) => {
+                const response = await cloudinary.uploader.upload(
+                    `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
+                    {folder : 'product_images'}
+                ) ;
+                req.memorystorage.push(`product_images/${extractPublicId(response.secure_url)}`)
+                return response.secure_url ;
+            })
+
+            const productImages = await Promise.all(promiseUrls) ;
+
+            const product = new Product({
+                name : name ,
+                price : price.toFixed(2) ,
+                description : description ,
+                type : type ,
+                images : productImages ,
+                availbleItems : availbleItems ,
+                categories : [...categories],
+                creatorId : user._id ,
+                valid : valid
+            })
+
+            const createdProduct = await product.save() ;
+            return res.status(200).json({message : `product created with id : ${createdProduct._id}`})
+        } catch (error) {
+            next(error) ;
         }
-
-        let status = false ;
-        let errors = {
-            name : undefined ,
-            price : undefined ,
-            description : undefined ,
-            type : undefined ,
-            availbleItems : undefined ,
-            categories : undefined ,
-            images : undefined
-        }
-
-        const name = productDetail.name.trim() ;
-        const price = Number(productDetail.price) ;
-        const description = productDetail.description.trim();
-        const type = productDetail.type.trim() ;
-        const availbleItems = Math.floor(Number(productDetail.quantity)) ;
-        const categories = productDetail.categories ;
-
-
-        const images = req.files ;
-
-
-        if (validator.isEmpty(name)) {
-            errors.name = 'cant leave the name empty' ;
-            status = true
-        }
-        if(!validator.isLength(name , {min : 3 , max : 40})) {
-            errors.name = 'name should be between 3 and 20 characters' ;
-            status = true ;
-        } 
-        if (validator.isEmpty(description)) {
-            errors.description = 'cant leave the description empty' ;
-            status = true ;
-        }
-        if (!validator.isLength(description , {min : 10 , max : 150})) {
-            errors.description = 'the description must be between 10 and 80 characters' ;
-            status = true ;
-        }
-
-        if (price <= 0) {
-            errors.price = 'invalid price' ;
-            status = true ;
-        }
-        if (type !== 'raw' && type !== 'custom' && type !== 'normal') {
-            errors.type = 'invalid type' ;
-            status = true ;
-        }
-        if (availbleItems <= 0) {
-            errors.availbleItems = 'cant have minus availble items' ;
-            status = true
-        }
-        if (images.length > 4 || images.length < 1) {
-            errors.images = 'you are allowed to post only 4 images ' ;
-            status = true ;
-        }
-
-        if (status) {
-            return res.status(400).json({message : 'error validating' , errors : errors}) ;
-        }
-        // what does valid do here , it works as variable if the user was admin then the product is valid directly else is
-        // not and needs admin verification
-        let valid = false ;
-
-        if (user.power === 'admin') {
-            valid = true ;
-        }
-
-    
-        const promiseUrls = images.map(async (file) => {
-            const response = await cloudinary.uploader.upload(
-                `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
-                {folder : 'product_images'}
-            ) ;
-
-            return response.secure_url ;
-        })
-
-        const productImages = await Promise.all(promiseUrls) ;
-
-        const product = new Product({
-            name : name ,
-            price : price.toFixed(2) ,
-            description : description ,
-            type : type ,
-            images : productImages ,
-            availbleItems : availbleItems ,
-            categories : [...categories],
-            creatorId : user._id ,
-            valid : valid
-        })
-
-        const createdProduct = await product.save() ;
-        return res.status(200).json({message : `product created with id : ${createdProduct._id}`})
 
     }
 
 const getProducts = async (req , res , next) => {
-
+    // for now the get product is simple there is no details in it ,
+    // we just retrieve all the product we have in the database but we will implement 
+    // pagination at certain point with query parameters and all that good stuff 
     try {
         const products = await Product.find({valid : true}) ;
         return res.status(200).json({products : products}) ;
@@ -156,15 +161,19 @@ const getUserProducts = async (req , res , next) => {
 }
 
 const updateUserProduct = async (req , res , next) => {
-
     const productId = req.params.productId ;
     const userId = req.user.id ;
-    const productName = req.body.name.trim() ;
-    const productDescription = req.body.description.trim() ;
+    const productName = req.body.name.trim() || '' ;
+    const productDescription = req.body.description.trim() || '' ;
     const productPrice = req.body.price ;
-    const type = req.body.type.trim() ;
+    const type = req.body.type.trim() || ''
     const availbleItems = req.body.availbleItems ;
     const categories = req.body.categories ;
+
+    // memory storage to handle if any error happened 
+    // refrence for images in case of fail so we can 
+    // remove them in the next route handeler
+    req.memorystorage = [] ;
 
 
     try {
@@ -186,6 +195,8 @@ const updateUserProduct = async (req , res , next) => {
         }
 
         let status = false ;
+        // the error object that would be show in the frontend page 
+        // the fields that stay undefined wouldnt be sent 
         let errors = {
             name : undefined ,
             price : undefined ,
@@ -235,10 +246,6 @@ const updateUserProduct = async (req , res , next) => {
             status = true ;
         }
 
-        if (user._id.toString() !== product.creatorId.toString()) {
-            errors.proudctIdMatchUser = 'you dont own this product to edit it' ;
-            status = true ;
-        }
         if (status) {
             return res.status(400).json({message : 'error validating' , errors : errors}) ;
         }
@@ -250,21 +257,14 @@ const updateUserProduct = async (req , res , next) => {
             productStatus = true ;
         }    
 
-        // deletting the old images
-        const promiseImages = oldImages.map(async (image) => {
-            const publicId = extractPublicId(image) ;
-            await cloudinary.uploader.destroy(`product_images/${publicId}`) ;
-        })
-        await Promise.all(promiseImages) ;
-
         // setting up the new images 
         const promiseUrls = req.files.map(async (file) => {
             const response = await cloudinary.uploader.upload(
                 `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
-                {folder : 'product_images'}
+                {folder : 'product_images' , use_filename : true , unique_filename : false}
             ) ;
-
-            return response.secure_url ;
+            req.memorystorage.push(`product_images/${extractPublicId(response.secure_url)}`) ;
+            return response.secure_url ; 
         })
 
         const productImages = await Promise.all(promiseUrls) ;
@@ -279,14 +279,17 @@ const updateUserProduct = async (req , res , next) => {
         product.status = productStatus  ;
 
 
-        
-
+        // deletting the old images
+        const promiseImages = oldImages.map(async (image) => {
+            const publicId = extractPublicId(image) ;
+            await cloudinary.uploader.destroy(`product_images/${publicId}`) ;
+        })
         await product.save() ;
+        await Promise.all(promiseImages) ;
 
-        return res.status(200).json({message : 'product has been created'}) ;
+        return res.status(200).json({message : 'product has been updated'}) ;
     } catch (error) {
-        console.log(error) ;
-        return res.status(500).json({message : 'error happened' , error : error}) ;
+        next(error) ;
     }
 
 }
@@ -325,8 +328,9 @@ const productDelete = async (req , res , next) => {
 }
 
 const getProductDetails = async (req , res , next) => {
+    // in this controller we also return some of the user details since i want to display it
+    // at the page as the user created this product 
     const productId = req.params.productId ;
-
     try {
         const product = await Product.findById(productId) ;
         if (!product) {
@@ -351,7 +355,7 @@ const putComment = async (req , res , next) => {
     const userId = req.user.id ;
     const productId = req.params.productId ;
     const commentDetails = req.body.commentDetails ;
-    
+
     if (commentDetails.comment.length > 200 ) {
         return res.status(400).json({message : 'Invalid length of comment'}) ;
     }
@@ -365,7 +369,7 @@ const putComment = async (req , res , next) => {
             return res.status(400).json({message : 'Couldnt find product'}) ;
         } 
         let alreadyCommented = false ;
-        product.comments.forEach(comment => {
+        product.reviews.forEach(comment => {
             if (comment.commenterId.toString() === userId) {
                 alreadyCommented = true ;
                 return true ;
@@ -375,11 +379,14 @@ const putComment = async (req , res , next) => {
         if (alreadyCommented) {
             return res.status(400).json({message : 'You already commented on this product'}) ;
         }
-        product.comments.push({
+        product.reviews.push({
             comment : commentDetails.comment ,
             rating : commentDetails.rating ,
             commenterId : userId
         })   
+
+        product.ratings.average = (product.ratings.average * product.ratings.count + commentDetails.rating) / (product.ratings.count + 1) ;
+        product.ratings.count ++ ;
         await product.save() ;
         
         return res.status(200).json({message : 'Comment has been added'}) ;

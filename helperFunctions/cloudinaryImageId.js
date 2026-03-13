@@ -10,4 +10,6 @@ const extractPublicId = (cloudinaryUrl) => {
     return publicId;
 };
 
+
+
 export default extractPublicId ;

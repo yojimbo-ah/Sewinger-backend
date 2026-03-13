@@ -8,6 +8,7 @@ import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 import { getIO } from "../socket.js";
 import { ObjectId } from "mongodb";
 import streamifier from 'streamifier' ;
+import { response } from "express";
 
 const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
@@ -315,7 +316,7 @@ const uploadImagesPublic = async (req , res , next) => {
     const userId = req.user.id ;
     const chatId = req.body.chatId ;
     const io = getIO() ;
-
+    req.memorystorage = [] ;
     if (req.files.length === 0) {
         return res.status(400).json({message : ''})
     }
@@ -347,7 +348,7 @@ const uploadImagesPublic = async (req , res , next) => {
                 `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
                 {folder : `group_chats/chat_${chatId}`}
             )
-
+            req.memorystorage.push(`group_chats/chat_${chatId}/${extractPublicId(response.secure_url)}`) ;
             return response.secure_url ;
         }) ;
 
@@ -377,8 +378,7 @@ const uploadImagesPublic = async (req , res , next) => {
         
         return res.status(200).json({message : 'Pictures sent successfully'}) ;
     } catch (error) {
-        console.log(error) ;
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        next(error) ;
     }
 }
 
@@ -387,7 +387,7 @@ const uploadImagePrivate = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = req.body.friendId ;
     const io = getIO() ;
-
+    req.memorystorage = [] ;
     if (req.files.length === 0) {
         return res.status(400).json({message : 'There is no sent images'}) ;
     }
@@ -411,7 +411,7 @@ const uploadImagePrivate = async (req , res , next) => {
                 `data:${file.mimetype};base64,${file.buffer.toString('base64')}` ,
                 {folder : `private_chats/chat_${chat._id.toString()}`}
             )
-
+            req.memorystorage.push(`private_chats/chat_${chat._id.toString()}/${extractPublicId(response.secure_url)}`) ;
             return response.secure_url ;
         }) ;
 
@@ -448,8 +448,7 @@ const uploadImagePrivate = async (req , res , next) => {
 
         return res.status(200).json({message : 'Pictures has been sent'}) ;
     } catch (error) {
-        console.log(error) ;
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        next(error) ;
     }
 }
 
@@ -459,7 +458,7 @@ const uploadVideosPublic = async (req , res , next) => {
     const userId = req.user.id ;
     const chatId = req.body.chatId ;
     const io = getIO() ;
-
+    req.memorystorage = [] ;
     if (req.files.length === 0) {
         return res.status(400).json({message : 'Error happened'}) ;
     }
@@ -504,6 +503,7 @@ const uploadVideosPublic = async (req , res , next) => {
                 type : 'video' ,
                 message : response.secure_url
             })
+            req.memorystorage.push(`public_chats/chat_${chat._id.toString()}/${extractPublicId(response.secure_url)}`) ;
             await newMessage.save() ;
             chat.messages.push(newMessage._id) ;
             return newMessage._doc ;
@@ -519,8 +519,7 @@ const uploadVideosPublic = async (req , res , next) => {
         return res.status(200).json({message : 'Videos uploaded succefully'}) ;
 
     } catch (error) {
-        console.log(error) ;
-        return res.status(500).json({message : 'Iternal server error'})
+        next(error) ;
     }
 }
 
@@ -528,6 +527,7 @@ const uploadVideosPrivate = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = req.body.friendId ;
     const io = getIO() ;
+    req.memorystorage = [] ;
 
     if (req.files.length === 0) {
         return res.status(400).json({message : 'Error happened'}) ;
@@ -581,16 +581,16 @@ const uploadVideosPrivate = async (req , res , next) => {
                 message : response.secure_url
             }) ;
 
-            
+            // we save the path to the file we want to delete from the database
+            req.memorystorage.push(`public_chats/chat_${user._id.toString()}/${extractPublicId(response.secure_url)}`) ;
             await newMessage.save() ;
             chat.messages.push(newMessage._id) ;
+            await chat.save() ;
             return newMessage._doc ;
         })
 
 
         const videosArray = await Promise.all(promiseArray) ;
-        await chat.save() ;
-
         videosArray.forEach(videoMessage => {
             io.to(`user:${userId}`).emit('receive_message', videoMessage) ;
             io.to(`user:${friendId}`).emit('receive_message', videoMessage) ;     
@@ -598,8 +598,8 @@ const uploadVideosPrivate = async (req , res , next) => {
         // the response would contain are secure_url to save it into our databse later 
         return res.status(200).json({message : 'Videos uploaded succefully'}) ;
     } catch (error) {
-        console.log(error) ;
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        
+        next(error) ;
     }
 }
 

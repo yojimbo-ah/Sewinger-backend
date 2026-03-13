@@ -21,7 +21,7 @@ const notificationModel = new Schema({
         type : {
             required : true ,
             type : String ,
-            enum : ['friend_request' , 'accepted_request' , ]
+            enum : ['friend_request' , 'accepted_request']
         } ,
         read : {
             type : Boolean ,

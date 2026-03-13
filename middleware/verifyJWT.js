@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 
 export const verifyJWT = async (req , res , next) => {
     const authHeader = req.headers.authorization ;
+    // we use the Bearer format 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(400).json({message : 'invalid jwt format'}) ;
     }
