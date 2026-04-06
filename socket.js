@@ -4,6 +4,13 @@ import jwt from 'jsonwebtoken'
 import User from './models/User.js';
 import dotenv from 'dotenv'
 
+// simillary to cloudinry the socket.io packages by default needs to be
+// setup in the app.js (the entry point of the app) by if we did all the
+// setup there that will cause loop import (means that package to be imported and
+// and exported back to the same file that might cause problems) / to fix this 
+// problem we create an intermediate file and we import a function that 
+// would be called in the app.js file and the publisher functions will be 
+// called in the controllers that need them
 
 dotenv.config() ;
 let io;
@@ -11,7 +18,7 @@ let io;
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL ,
+      origin: process.env.FRONTEND_URL  ,
       methods: ['GET', 'POST' , 'PUT' , 'PATCH' , 'DELETE'] 
     }
   });
@@ -58,6 +65,7 @@ export const initSocket = (server) => {
       //this is for public chats handlelling :
       addMessageToGroupChat(io , socket) ;
 
+      // might add more methods in the future // 
       socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
       });

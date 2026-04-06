@@ -6,6 +6,8 @@ import GroupChat from "../models/GroupChat.js" ;
 
 
 const addMessageToChat = (io , socket) => {
+    // on send_messages would work as listener it will listen for calls
+    // from the fronted server
     socket.on('send_message' , async (data) => {
         const userId = socket.userId ;
         const friendId = data.friendId ;
@@ -17,8 +19,11 @@ const addMessageToChat = (io , socket) => {
                 reciverId : friendId ,
                 message : message
             })
+            // this section here will emit the newMessage that we created
+            // 
             io.to(`user:${friendId}`).emit('receive_message', newMessage._doc)
-
+            // we dont wait to save the message then we publish , we publish
+            // back then we save since we dont want to wait the database response
             const chat = await Chat.findOne({
                 users: { $all: [userId, friendId] } ,
                 $expr: { $eq: [{ $size: "$users" }, 2] }
@@ -36,6 +41,11 @@ const addMessageToChat = (io , socket) => {
         }
     })
 }
+
+// it works similarly for the groupChat function but the only diffrence 
+// is in place of private room joined by only the user and it has 
+// refrence to the user id , we use the group chat , wish will be joined
+// by the users when they login into there accounts in the client side
 
 const addMessageToGroupChat = (io , socket) => {
     socket.on('send_message_public' , async (data) => {
