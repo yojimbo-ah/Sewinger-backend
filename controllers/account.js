@@ -12,7 +12,6 @@ import cloudinary from '../cloudinary.js';
 import transporter from '../service/emailTransporter.js';
 import extractPublicId from '../helperFunctions/cloudinaryImageId.js';
 import streamifier from 'streamifier' ;
-;
 
 const confirmJwt = async (req , res , next) => {
     const authHeader = req.headers.authorization ;

@@ -25,6 +25,7 @@ import friendRouter from "./routes/friend.js";
 import detailRouter from "./routes/detailManagement.js";
 import notificationRouter from "./routes/notification.js";
 import sellerRouter from "./routes/seller.js";
+import workshopRouter from "./routes/workshop.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -59,8 +60,12 @@ app.use('/friend' , friendRouter) ;
 app.use('/detail' , detailRouter) ;
 app.use('/notification' , notificationRouter) ;
 app.use('/seller' , sellerRouter) ;
+app.use('/workshop' , workshopRouter) ;
 
 // connect to the database with mongoose
+// mongoose by default does the setup of importing iteself 
+// to other files inside the import names "moongose"
+// no need to create a files like cloudinary.js and socket.js 
 mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
     .then(result => {
         server.listen(process.env.LISTEN_AT || 3000 , () => {
