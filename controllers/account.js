@@ -12,6 +12,7 @@ import cloudinary from '../cloudinary.js';
 import transporter from '../service/emailTransporter.js';
 import extractPublicId from '../helperFunctions/cloudinaryImageId.js';
 import streamifier from 'streamifier' ;
+import { validateSellerRequest } from '../google-generative-ai.js';
 
 const confirmJwt = async (req , res , next) => {
     const authHeader = req.headers.authorization ;
@@ -430,42 +431,82 @@ const putUserWaitSellerRequest = async (req , res , next) => {
         }
 
         const promiseArray = req.files.map(async(file) => {
+            // Extract filename and extension to preserve them properly
+            const filenameParts = file.originalname.lastIndexOf('.')
+            const nameWithoutExt = filenameParts > 0 ? file.originalname.substring(0, filenameParts) : file.originalname
+            const extension = filenameParts > 0 ? file.originalname.substring(filenameParts + 1) : ''
+            
             const response = await new Promise ((resolve , reject) => {
                 const stream = cloudinary.uploader.upload_stream({
-                        // since we have mixed type of file being sent from the frotned we must handle both
-                        // se we chek if it either a image by checking the mimetype field inside the file
-                        // it would start by image/...etc
                         resource_type : file.mimetype.startsWith('image/') ? 'image' : 'raw' ,
                         folder : `seller_requests/seller_${user._id.toString()}` ,
+                        // Use public_id with original filename to preserve it
+                        public_id : extension ? `${nameWithoutExt}.${extension}` : nameWithoutExt ,
+                        // Keep these for safety but explicit public_id takes precedence
                         use_filename : true , 
-                        unique_filename : false
+                        unique_filename : false ,
+                        // Force the file to keep extension and be downloadable with correct format
+                        force_version : false
                     } ,
                     (error , result) => {
-                        // in case of error happening
                         if (error) reject(error) ;
-                        // resolving at the end
                         if (result) resolve(result)
                     }
                 ) ;
-                // sending the chunks here from out stream and creating them from out buffer
                 streamifier.createReadStream(file.buffer).pipe(stream) ;
-
             }) ;
+            
             const fileObj = {
                 url : response.secure_url ,
-                type : file.mimetype.startsWith('image/') ? 'image' : 'raw'  
+                type : file.mimetype.startsWith('image/') ? 'image' : 'raw' ,
+                originalName : file.originalname
             }
             uploadedData.push(fileObj) ;
             return fileObj ;
         })
 
         const handlledFilesArray = await Promise.all(promiseArray) || [] ;
+        
+        // Create the request with pending validation status
         const pendingRequest = new UserWaitSellerConf({
             description : description ,
             userId : userId ,
-            files : handlledFilesArray
+            files : handlledFilesArray ,
+            validationStatus : 'validating'
         })
         await pendingRequest.save() ;
+        
+        // Run AI validation asynchronously (don't wait for it to complete)
+        // This way the response is sent quickly to the user
+        (async () => {
+            try {
+                const aiResult = await validateSellerRequest(description, handlledFilesArray);
+                
+                // Update the request status based on AI result
+                const statusUpdate = aiResult.valid ? 'manual_review' : 'not_compatible';
+                
+                await UserWaitSellerConf.findByIdAndUpdate(
+                    pendingRequest._id,
+                    {
+                        validationStatus : statusUpdate,
+                        aiValidationReason : aiResult.reason
+                    }
+                );
+                
+                console.log(`AI Validation completed for request ${pendingRequest._id}: ${statusUpdate} - ${aiResult.reason}`);
+            } catch (error) {
+                console.error(`AI Validation error for request ${pendingRequest._id}:`, error);
+                // If AI fails, mark as manual review to be safe
+                await UserWaitSellerConf.findByIdAndUpdate(
+                    pendingRequest._id,
+                    {
+                        validationStatus : 'manual_review',
+                        aiValidationReason : 'AI validation encountered an error - requires manual review'
+                    }
+                );
+            }
+        })();
+        
         return res.status(200).json({message : 'request has been sent succussfully'})
 
     } catch (error) {
@@ -485,6 +526,63 @@ const putUserWaitSellerRequest = async (req , res , next) => {
 
 }
 
-const account = {login , signup , resetAccount , resetAccountVer , SignupVer , confirmJwt , putUserWaitSellerRequest} ;
+const getWallet = async (req , res , next) => {
+    const userId = req.user.id ;
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with same informations'}) ;
+        }
+
+        const currentBalance = Number((user.wallet?.balance ?? 0).toFixed(2)) ;
+        if (!user.wallet || typeof user.wallet.balance !== 'number') {
+            user.wallet = {balance : currentBalance} ;
+            await user.save() ;
+        }
+
+        return res.status(200).json({wallet : {balance : currentBalance}}) ;
+    } catch (error) {
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const addFakeMoneyToWallet = async (req , res , next) => {
+    const userId = req.user.id ;
+    const amount = Number(req.body.amount) ;
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({message : 'Invalid amount , amount should be greater than 0'}) ;
+    }
+
+    if (amount > 10000) {
+        return res.status(400).json({message : 'Amount too large for a single top up'}) ;
+    }
+
+    try {
+        const user = await User.findById(userId) ;
+        if (!user) {
+            return res.status(400).json({message : 'Couldnt find user with same informations'}) ;
+        }
+
+        const currentBalance = Number((user.wallet?.balance ?? 0).toFixed(2)) ;
+        if (!user.wallet || typeof user.wallet.balance !== 'number') {
+            user.wallet = {balance : currentBalance} ;
+        }
+
+        user.wallet.balance += amount ;
+        user.wallet.balance = Number(user.wallet.balance.toFixed(2)) ;
+        await user.save() ;
+
+        return res.status(200).json({
+            message : 'Fake money added to wallet',
+            wallet : {balance : user.wallet.balance}
+        }) ;
+    } catch (error) {
+        return res.status(500).json({message : 'Iternal server error'}) ;
+    }
+}
+
+const account = {login , signup , resetAccount , resetAccountVer , SignupVer , confirmJwt , putUserWaitSellerRequest , getWallet , addFakeMoneyToWallet} ;
 
 export default account ;

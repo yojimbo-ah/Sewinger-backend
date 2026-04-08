@@ -9,10 +9,11 @@ const fileSchema = new Schema ({
     type : {
         type : String ,
         enum : ['image' , 'raw'] ,
-        originalName : {
-            type : String ,
-            required : true
-        }
+        required : true
+    } ,
+    originalName : {
+        type : String ,
+        required : true
     }
 } , {_id : false})
 
@@ -30,6 +31,15 @@ const userWaitSellerConf = new Schema ({
         type : [fileSchema] ,
         required : true ,
         default : [] 
+    } ,
+    validationStatus : {
+        type : String ,
+        enum : ['pending', 'validating', 'not_compatible', 'manual_review', 'approved', 'rejected'] ,
+        default : 'pending'
+    } ,
+    aiValidationReason : {
+        type : String ,
+        default : null
     }
 } , {timestamps : true})
 

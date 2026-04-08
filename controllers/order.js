@@ -16,17 +16,56 @@ const putOrder = async (req , res , next) => {
         const user = await User.findById(userId) ;
 
         if (!user) {
-            return res.starus(400).json({message : 'Couldnt find user with similair id'}) ;
+            return res.status(400).json({message : 'Couldnt find user with similair id'}) ;
         }
 
         await user.populate('cart.items.productId') ;
         if (user.cart.items.length === 0) {
-            res.status(400).json({message : 'error'})
+            return res.status(400).json({message : 'Cart is empty'})
         }
+
+        const totalPrice = Number(user.cart.totalPrice.toFixed(2)) ;
+
+        const currentBalance = Number((user.wallet?.balance ?? 0).toFixed(2)) ;
+        if (!user.wallet || typeof user.wallet.balance !== 'number') {
+            user.wallet = {balance : currentBalance} ;
+        }
+
+        if (currentBalance < totalPrice) {
+            return res.status(400).json({
+                message : 'Insufficent wallet balance',
+                wallet : {
+                    balance : currentBalance ,
+                    required : totalPrice
+                }
+            }) ;
+        }
+
+        const missingProducts = user.cart.items.find(item => !item.productId) ;
+        if (missingProducts) {
+            return res.status(400).json({message : 'One or more products in your cart no longer exist'}) ;
+        }
+
+        const insufficentProduct = user.cart.items.find(item => {
+            return item.quantity > item.productId.availbleItems ;
+        }) ;
+
+        if (insufficentProduct) {
+            return res.status(400).json({
+                message : 'There isnt enough stock to create this order',
+                product : {
+                    id : insufficentProduct.productId._id ,
+                    name : insufficentProduct.productId.name ,
+                    available : insufficentProduct.productId.availbleItems ,
+                    wanted : insufficentProduct.quantity
+                }
+            }) ;
+        }
+
         const order = new Order({
             ownerId : userId ,
             order : {
-                totalPrice : user.cart.totalPrice.toFixed(2) ,
+                totalPrice : totalPrice ,
                 items : user.cart.items.map(item => {
                     return {
                         quantity : item.quantity ,
@@ -37,6 +76,20 @@ const putOrder = async (req , res , next) => {
                 })
             }
         })
+
+        const productUpdatePromises = user.cart.items.map(async(item) => {
+            const product = item.productId ;
+            product.availbleItems -= item.quantity ;
+            if (product.availbleItems <= 0) {
+                product.availbleItems = 0 ;
+                product.availble = false ;
+            }
+            await product.save() ;
+        }) ;
+        await Promise.all(productUpdatePromises) ;
+
+        user.wallet.balance = currentBalance - totalPrice ;
+        user.wallet.balance = Number(user.wallet.balance.toFixed(2)) ;
 
         user.cart = {
             totalPrice : 0 ,
@@ -50,7 +103,12 @@ const putOrder = async (req , res , next) => {
             subject : 'Order added' ,
             html : `<p>Order added under your name</p>`
         })
-        return res.status(200).json({message : 'order had been created'}) ;
+        return res.status(200).json({
+            message : 'order had been created',
+            wallet : {
+                balance : user.wallet.balance
+            }
+        }) ;
     } catch (error) {
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;

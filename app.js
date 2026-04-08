@@ -1,11 +1,9 @@
 import express from "express" ;
-import path from 'path' ;
-import { fileURLToPath } from 'url';
-import { dirname} from 'path';
 import mongoose from "mongoose";
 import http from "http" ;
 import { initSocket } from "./socket.js";
 import dotenv from 'dotenv'
+import cors from 'cors'
 
 dotenv.config() ;
 
@@ -27,8 +25,6 @@ import notificationRouter from "./routes/notification.js";
 import sellerRouter from "./routes/seller.js";
 import workshopRouter from "./routes/workshop.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express() ;
 
@@ -37,15 +33,15 @@ initSocket(server)
 
 app.use(express.json()) ;
 
+// CORS setup with proper options
+const corsOptions = {
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
 
-
-// CORS setup 
-app.use((req , res , next) => {
-    res.setHeader('Access-Control-Allow-Origin' , '*') ;
-    res.setHeader('Access-Control-Allow-Methods' , 'GET,POST,PUT,PATCH,DELETE')
-    res.setHeader('Access-Control-Allow-Headers' , 'Content-Type , Authorization')
-    next()
-})
+app.use(cors(corsOptions));
 
 // the routes of the app they are well seperated and you can check evry route
 // individually 

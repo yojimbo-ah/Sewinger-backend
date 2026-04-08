@@ -15,7 +15,9 @@ productRouter.patch('/edit/:productId' , verifyJWT , upload.array("images" , IMA
     products.updateUserProduct , cloudinaryErrorHandler) ;
 productRouter.delete('/delete/:productId' , verifyJWT , products.productDelete) ;
 productRouter.get('/details/:productId' , products.getProductDetails) ;
-productRouter.put('/details/cooment/:productId' , products.putComment) ;
+productRouter.post('/review/:productId' , verifyJWT , products.putComment) ;
+productRouter.patch('/review/:productId' , verifyJWT , products.updateComment) ;
+productRouter.delete('/review/:productId' , verifyJWT , products.deleteComment) ;
 
 
 export default productRouter ;

@@ -18,7 +18,8 @@ let io;
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL  ,
+      // process.env.FRONTEND_URL
+      origin:  'http://localhost:5173' ,
       methods: ['GET', 'POST' , 'PUT' , 'PATCH' , 'DELETE'] 
     }
   });

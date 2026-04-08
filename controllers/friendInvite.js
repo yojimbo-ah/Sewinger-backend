@@ -262,6 +262,9 @@ const deleteFriend = async (req , res , next) => {
 
 const getUserFriends = async (req , res , next) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
 
     try {
         const user = await User.findById(userId).populate('friends.friendId') ;
@@ -270,18 +273,28 @@ const getUserFriends = async (req , res , next) => {
             return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
         }
 
-        const friends = user.friends.map((friend , index) => {
+        const totalFriends = user.friends.length ;
+        const totalPages = Math.ceil(totalFriends / limit) ;
+
+        const friends = user.friends.slice(skip, skip + limit).map((friend) => {
             return {
                 friendId : friend.friendId._id ,
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : friend.friendId.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage ,
+                email : friend.friendId.email
             }
         })
 
-        return res.status(200).json({friends : friends}) ;
+        return res.status(200).json({
+            total : totalFriends ,
+            data : friends ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
 
     } catch (error) {
         console.log(error) ;
@@ -291,6 +304,9 @@ const getUserFriends = async (req , res , next) => {
 
 const getUserPendingFriends = async (req , res , next) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -299,21 +315,33 @@ const getUserPendingFriends = async (req , res , next) => {
         }
 
         // first we filter depending on the request was sent by me , meaning the user then we map it to create new object from it
-        const pendingRequests = user.friendsRequests.filter(request => {
+        const allPendingRequests = user.friendsRequests.filter(request => {
             if (request.sentBy === 'me') {
                 return true ;
             }
-        }).map((request) => {
+        }) ;
+
+        const totalPending = allPendingRequests.length ;
+        const totalPages = Math.ceil(totalPending / limit) ;
+
+        const pendingRequests = allPendingRequests.slice(skip, skip + limit).map((request) => {
             return {
                 friendId : request.friendId._id ,
                 name : {
                     firstName : request.friendId.name.firstName ,
                     lastName : request.friendId.name.lastName
                 } ,
-                profileImage : request.friendId.bio.profileImage
+                profileImage : request.friendId.bio.profileImage ,
+                email : request.friendId.email
             }
         })
-        return res.status(200).json({pendingRequests : pendingRequests}) ;
+        return res.status(200).json({
+            total : totalPending ,
+            data : pendingRequests ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
 
     } catch (error) {
         console.log(error) ;
@@ -323,6 +351,10 @@ const getUserPendingFriends = async (req , res , next) => {
 
 const getUserFriendRequests = async (req , res , next ) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
+
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
         
@@ -330,21 +362,33 @@ const getUserFriendRequests = async (req , res , next ) => {
             return res.status(400).json({message : 'Couldnt find user with similair information'}) ;
         }
         // first we filter depending on the request was sent by friend , meaning the user then we map it to create new object from it
-        const friendsRequests = user.friendsRequests.filter((friend) => {
+        const allFriendsRequests = user.friendsRequests.filter((friend) => {
             if (friend.sentBy === 'friend') {
                 return true ;
             }
-        }).map(friend => {
+        }) ;
+
+        const totalRequests = allFriendsRequests.length ;
+        const totalPages = Math.ceil(totalRequests / limit) ;
+
+        const friendsRequests = allFriendsRequests.slice(skip, skip + limit).map(friend => {
             return {
                 friendId : friend.friendId._id ,
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : friend.friendId.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage ,
+                email : friend.friendId.email
             }
         })
-        return res.status(200).json({friendsRequests : friendsRequests}) ;
+        return res.status(200).json({
+            total : totalRequests ,
+            data : friendsRequests ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
     } catch (error) {
         return res.status(400).json({message : 'Iternal server error'})
     }

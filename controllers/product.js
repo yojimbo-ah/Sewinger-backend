@@ -352,13 +352,13 @@ const getProductDetails = async (req , res , next) => {
     // at the page as the user created this product 
     const productId = req.params.productId ;
     try {
-        const product = await Product.findById(productId) ;
+        const product = await Product.findById(productId).populate('reviews.commenterId', 'name avatar') ;
         if (!product) {
-            return res.status(400).json('Coudlnt find product with familair id') ;
+            return res.status(400).json({message : 'Product not found'}) ;
         }
         const creator = await User.findById(product.creatorId) ;
         if (!creator) {
-            return res.status(400).json({message : 'Couldnt find the creator'}) ;
+            return res.status(400).json({message : 'Creator not found'}) ;
         }
 
         return res.status(200).json({product : product , creator : {
@@ -367,7 +367,8 @@ const getProductDetails = async (req , res , next) => {
             _id : creator._id
         }}) ;
     } catch (error) {
-        return res.status(500).json({message : 'Iternal server error , try again later'}) ;
+        console.error(error) ;
+        return res.status(500).json({message : 'Internal server error, try again later'}) ;
     }
 }
 
@@ -376,46 +377,126 @@ const putComment = async (req , res , next) => {
     const productId = req.params.productId ;
     const commentDetails = req.body.commentDetails ;
 
-    if (commentDetails.comment.length > 200 ) {
-        return res.status(400).json({message : 'Invalid length of comment'}) ;
+    if (!commentDetails.comment || commentDetails.comment.trim().length === 0) {
+        return res.status(400).json({message : 'Comment cannot be empty'}) ;
     }
-    if (!(0 <= commentDetails.rating && commentDetails.rating <= 5)) {
-        return res.status(400).json({message : 'Invalid rating'}) ;
+    if (commentDetails.comment.length > 200 ) {
+        return res.status(400).json({message : 'Comment must be at most 200 characters'}) ;
+    }
+    if (!Number.isInteger(commentDetails.rating) || !(1 <= commentDetails.rating && commentDetails.rating <= 5)) {
+        return res.status(400).json({message : 'Rating must be an integer between 1 and 5'}) ;
     }
 
     try {
-        const product = Product.findById(productId) ;
+        const product = await Product.findById(productId) ;
         if (!product) {
-            return res.status(400).json({message : 'Couldnt find product'}) ;
+            return res.status(400).json({message : 'Product not found'}) ;
         } 
-        let alreadyCommented = false ;
-        product.reviews.forEach(comment => {
-            if (comment.commenterId.toString() === userId) {
-                alreadyCommented = true ;
-                return true ;
+        let existingReviewIndex = -1 ;
+        product.reviews.forEach((review, index) => {
+            if (review.commenterId.toString() === userId) {
+                existingReviewIndex = index ;
             }
         })
 
-        if (alreadyCommented) {
-            return res.status(400).json({message : 'You already commented on this product'}) ;
+        if (existingReviewIndex !== -1) {
+            return res.status(400).json({message : 'You already commented on this product. Use update endpoint to modify.'}) ;
         }
+        
         product.reviews.push({
-            comment : commentDetails.comment ,
+            comment : commentDetails.comment.trim() ,
             rating : commentDetails.rating ,
             commenterId : userId
         })   
 
-        product.ratings.average = (product.ratings.average * product.ratings.count + commentDetails.rating) / (product.ratings.count + 1) ;
         product.ratings.count ++ ;
+        product.ratings.average = (product.ratings.average * (product.ratings.count - 1) + commentDetails.rating) / product.ratings.count ;
         await product.save() ;
         
-        return res.status(200).json({message : 'Comment has been added'}) ;
+        return res.status(201).json({message : 'Comment added successfully', review : product.reviews[product.reviews.length - 1]}) ;
     } catch (err) {
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        console.error(err) ;
+        return res.status(500).json({message : 'Internal server error'}) ;
+    }
+}
+
+const updateComment = async (req , res , next) => {
+    const userId = req.user.id ;
+    const productId = req.params.productId ;
+    const { comment, rating } = req.body ;
+
+    if (!comment || comment.trim().length === 0) {
+        return res.status(400).json({message : 'Comment cannot be empty'}) ;
+    }
+    if (comment.length > 200) {
+        return res.status(400).json({message : 'Comment must be at most 200 characters'}) ;
+    }
+    if (!Number.isInteger(rating) || !(1 <= rating && rating <= 5)) {
+        return res.status(400).json({message : 'Rating must be an integer between 1 and 5'}) ;
+    }
+
+    try {
+        const product = await Product.findById(productId) ;
+        if (!product) {
+            return res.status(404).json({message : 'Product not found'}) ;
+        }
+        
+        const reviewIndex = product.reviews.findIndex(r => r.commenterId.toString() === userId) ;
+        if (reviewIndex === -1) {
+            return res.status(404).json({message : 'Review not found'}) ;
+        }
+
+        const oldRating = product.reviews[reviewIndex].rating ;
+        product.reviews[reviewIndex].comment = comment.trim() ;
+        product.reviews[reviewIndex].rating = rating ;
+        product.reviews[reviewIndex].updatedAt = new Date() ;
+
+        // Recalculate average rating
+        product.ratings.average = (product.ratings.average * product.ratings.count - oldRating + rating) / product.ratings.count ;
+        
+        await product.save() ;
+        return res.status(200).json({message : 'Review updated successfully', review : product.reviews[reviewIndex]}) ;
+    } catch (err) {
+        console.error(err) ;
+        return res.status(500).json({message : 'Internal server error'}) ;
+    }
+}
+
+const deleteComment = async (req , res , next) => {
+    const userId = req.user.id ;
+    const productId = req.params.productId ;
+
+    try {
+        const product = await Product.findById(productId) ;
+        if (!product) {
+            return res.status(404).json({message : 'Product not found'}) ;
+        }
+
+        const reviewIndex = product.reviews.findIndex(r => r.commenterId.toString() === userId) ;
+        if (reviewIndex === -1) {
+            return res.status(404).json({message : 'Review not found'}) ;
+        }
+
+        const deletedRating = product.reviews[reviewIndex].rating ;
+        product.reviews.splice(reviewIndex, 1) ;
+        
+        // Recalculate average rating
+        if (product.ratings.count > 1) {
+            product.ratings.average = (product.ratings.average * product.ratings.count - deletedRating) / (product.ratings.count - 1) ;
+        } else {
+            product.ratings.average = 0 ;
+        }
+        product.ratings.count -- ;
+
+        await product.save() ;
+        return res.status(200).json({message : 'Review deleted successfully'}) ;
+    } catch (err) {
+        console.error(err) ;
+        return res.status(500).json({message : 'Internal server error'}) ;
     }
 }
 
 const products = {PostProduct , getProducts , getUserProducts , updateUserProduct , productDelete , getProductDetails
-    , putComment
+    , putComment , updateComment , deleteComment
 } ;
 export default products ;

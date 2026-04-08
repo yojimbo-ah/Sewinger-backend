@@ -74,6 +74,16 @@ const userSchema = new Schema({
             }
         }]
     } ,
+    // this will be considered as fake wallet 
+    // it will not be integreated via like stripe api or chargily api
+    // since i think it out of the scope of this project
+    wallet : {
+        balance : {
+            type : Number ,
+            required : true ,
+            default : 0
+        }
+    } ,
     power : { 
         type : String ,
         required : true ,
