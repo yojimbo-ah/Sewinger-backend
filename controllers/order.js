@@ -1,12 +1,9 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
-import path from 'path' 
-import { fileURLToPath } from "url";
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { orderConfirmation } from "../helperFunctions/emailPages.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 const putOrder = async (req , res , next) => {
@@ -97,11 +94,11 @@ const putOrder = async (req , res , next) => {
         }
         await user.save() ;
         await order.save()
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Order added' ,
-            html : `<p>Order added under your name</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: user.email,
+            subject: 'Order Confirmation',
+            html: orderConfirmation(order._id.toString(), new Date().toLocaleDateString(), totalPrice, `${user.name.firstName} ${user.name.lastName}`)
         })
         return res.status(200).json({
             message : 'order had been created',
@@ -122,13 +119,10 @@ const getOrderInvoice = async (req , res , next) => {
 
     try {
         const user = await User.findById(userId) ;
-        console.log(user) ;
         if (!user) {
-            console.log(1)
             return res.status(400).json({message : 'Couldnt find user with familair id'}) ;
         }
         const order = await Order.findById(orderId) ;
-        console.log(2)
         if (!order) {
             return res.status(400).json({message : 'Couldnt find order with similair id'}) ;
         }
@@ -136,7 +130,10 @@ const getOrderInvoice = async (req , res , next) => {
             return res.status(400).json({message : 'You cant get the invoice since you dont own the order'}) ;
         }
 
-        
+        // PDFDocument library helps us generate documents on the fly with the data we want
+        // i used so users can retrieve there invoices it is not complicated to use or
+        // anything like that , pretty good documentation on the web (ai really helps
+        // with these kinda stuff )        
         const doc = new PDFDocument();
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="document.pdf"');

@@ -2,6 +2,8 @@ import User from "../models/User.js"
 import Product from "../models/Product.js"
 import UserWaitSellerConf from "../models/UserWaitSellerConf.js"
 import transporter from "../service/emailTransporter.js"
+import resend from "../service/resend.js"
+import { productDeleted, productVerfied, sellerRequestAccepted } from "../helperFunctions/emailPages.js"
 
 const adminGetPendingProducts = async (req , res , next) => {
     // Admin verification is handled by verifyAdmin middleware
@@ -62,20 +64,23 @@ const adminGetSellerRequests = async (req , res , next) => {
 const adminPatchProductStatus = async (req , res , next) => {
     // Admin verification is handled by verifyAdmin middleware
     const productId = req.params.productId ;
-
     try {
         const product = await Product.findById(productId) ;
 
         if (!product) {
             return res.status(400).json({message : 'Cant find product with similair id'}) ;
         }
+        const seller = await User.findById(product.creatorId) ;
+        if (!seller) {
+            return res.status(400).json({message : 'Error happened try again later'}) ;
+        }
         product.valid = true ;
         await product.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : req.admin.email ,
+        const data = resend.emails.send({
+            from : 'handlyy corp <no_reply@handlyy.tech>' ,
+            to : seller.email ,
             subject : 'Product validation' ,
-            html : `<p>the product with ID : ${productId} , has been veryfied by the admin : ${req.admin.name.lastName} ${req.admin.name.firstName}</p>`
+            html : productVerfied(productId , req.user.name) 
         })
         return res.status(200).json({message : 'Product was verefied'}) ;
 
@@ -100,11 +105,11 @@ const adminDeleteProduct = async (req , res , next) => {
         }
 
         await product.deleteOne() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Product deletion' ,
-            html : `<p>the product with ID : ${productId} , has been deleted by the admin : ${req.admin.name.lastName} ${req.admin.name.firstName}</p>`
+        const data = resend.emails.send({
+            from : 'handlyy corp <no_reply@handlyy.tech>' ,
+            to : seller.email ,
+            subject : 'Product deleted' ,
+            html : productDeleted(productId)
         })
         return res.status(200).json({message : 'Product deleted succcesffuly'}) ;
     } catch (error) {
@@ -135,11 +140,11 @@ const adminPatchUserPower = async (req , res , next) => {
         user.power = 'seller' ;
         await UserWaitSellerConf.deleteMany({userId : userId}) ;
         await user.save() ;
-            transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Account' ,
-            html : `<p>You Account has been set as a seller by the admin ${req.admin.name.firstName} ${req.admin.name.lastName}</p>`
+        const data = resend.emails.send({
+            from : 'handlyy corp <no_reply@handlyy.tech>' ,
+            to : seller.email ,
+            subject : 'Seller validation' ,
+            html :  sellerRequestAccepted(user.name)
         })
         return res.status(200).json({message : 'Success '}) ;
 

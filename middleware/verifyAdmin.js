@@ -1,6 +1,7 @@
 import User from "../models/User.js";
 
 // Middleware to verify that the user is an admin
+// else it returns a error to the client
 export const verifyAdmin = async (req, res, next) => {
     try {
         const userId = req.user.id;

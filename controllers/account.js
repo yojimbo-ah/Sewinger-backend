@@ -7,12 +7,12 @@ import validator from 'validator'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto' ;
-import { resend } from '../service/emailTransporter.js';
 import cloudinary from '../cloudinary.js';
-import transporter from '../service/emailTransporter.js';
+import resend from '../service/resend.js';
 import extractPublicId from '../helperFunctions/cloudinaryImageId.js';
 import streamifier from 'streamifier' ;
 import { validateSellerRequest } from '../google-generative-ai.js';
+import { resetPassword, sendEmailSignUp } from '../helperFunctions/emailPages.js';
 
 const confirmJwt = async (req , res , next) => {
     const authHeader = req.headers.authorization ;
@@ -69,6 +69,8 @@ const resetAccountVer = async (req , res , next) => {
         status = true ;
     }
     try {
+        // verifying the token beign sent from the frontend 
+        // before modifying the user's data 
         const reset = await Reset.findOne({token : token}) ;
         if (!reset) {
             errors.token = 'Invalid token' ;
@@ -113,14 +115,14 @@ const resetAccount = async (req , res , next) => {
     })
     try {
         await newToken.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
+        const resetLink = `${process.env.FRONTEND_URL}/account/account/signup/${randomString}` ;
+        const data = resend.emails.send({
+            from : 'handlyy corp <resetAccount@handlyy.tech>' ,
             to : user.email ,
-            subject : 'password reseting' ,
-            html : `<p> reset the password
-            <a href="${process.env.FRONTEND_URL}/account/forgot/${randomString}">click</a>
-            </p>`
+            subject : 'Account reset' ,
+            html : resetPassword(resetLink)
         })
+
         return res.status(200).json({message : 'reset token has been created'}) ; 
     } catch (error) {
         return res.status(500).json({error : 'server error'}) ;
@@ -187,20 +189,6 @@ const login = async (req , res , next) => {
                 power : user.power ,
                 sentRequest : reqt
             }, process.env.BCRYPT_CODE ,{expiresIn : '15d'}) ;
-
-            const response = await resend.emails.send({
-                from : `Sewinger team <onboarding@resend.dev>` ,
-                to : user.email ,
-                subject: 'Hello from Resend!',
-                html: '<p>This is your first email sent with Resend!</p>'
-            }) ;
-
-            console.log(response) ;
-            if (response.data) {
-                console.log(`response ID : ${response.data.id}`) ;
-            }
-
-            console.log('email has been sent') ;
 
             return res.status(200).json({message : 'Connected successfuly' , token : token , user : {
                 email : user.email ,
@@ -292,15 +280,6 @@ const signup = async (req , res , next) => {
 
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
-        // const user  = new User({
-        //         email : email ,
-        //         name : {
-        //             firstName : firstName ,
-        //             lastName : lastName
-        //         } ,
-        //         password : hashedPassword ,
-        //         notification : notification._id
-        //     }) ;
 
         const user = new UserWaitConfirm({
             name : {
@@ -318,29 +297,17 @@ const signup = async (req , res , next) => {
         // will be fixed by the change of the email domain 
         // for now it is not ready even tho the site is hosted 
 
-        /*
+        const resetLink = `${process.env.FRONTEND_URL}/account/signup/${token}`
         const response = await resend.emails.send({
-            from : `Sewinger team <onboarding@resend.dev>` ,
+            from : `Handlyy corp <SignUpg@handlyy.tech>` ,
             to : user.email.toString() ,
-            subject: 'Hello from Resend!',
-            html: `<p><b>confirm your account creation : <a href="${process.env.FRONTEND_URL}/account/signup/${token}">confirm</a></b></p>`
+            subject: 'Account creation',
+            html: sendEmailSignUp(resetLink)
         }) ;
-        console.log(response) ;
-        if (response.data) {
-            console.log(`response ID : ${response.data.id}`) ;
-        }   
-        console.log("email has been sent") ;
-         */
 
-
+        console.log(response.data) ;
         return res.status(200).json({message : 'Account has been created'})
     } catch (error) {
-        console.log('inside the error block') ;
-        console.log(error.message) ;
-        console.log(error) ;
-        console.log('inside the error block') ;
-        console.log(error.message) ;
-        console.log(error) ;
         return res.status(500).json({error}) ;
     }
 

@@ -1,6 +1,9 @@
 import mongoose , {Schema , Types} from "mongoose";
 
 // Schema for users that send a request for being a seller and awaits admin verification
+
+// this is the file schema being used to save the files we have either image or
+// raw (word documents , pdfs , odt , ...etc)
 const fileSchema = new Schema ({
     url : {
         type : String ,
@@ -17,6 +20,15 @@ const fileSchema = new Schema ({
     }
 } , {_id : false})
 
+// userWaitSellerConf is the scehma used to save the request beign sent by client 
+// if he want to be a seller on the website 
+// so he will pass two checks ai check if he got rejected or failed to check
+// (error in the ai api i used , gemini flash) then he will be redirected for manual
+// check might change it tho if it doesnt work well 
+
+////////////////////////
+// might get chenged //
+//////////////////////
 const userWaitSellerConf = new Schema ({
     userId : {
         type : Types.ObjectId ,

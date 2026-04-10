@@ -22,7 +22,7 @@ const PostProduct = async (req , res , next) => {
             return res.status(400).json({message : 'invalid user'}) ;
         }
 
-        if (user.power !== 'admin' || user.power !== 'seller') {
+        if (user.power !== 'admin' && user.power !== 'seller') {
             return res.status(400).json({message : 'You are not allowed to create products'}) ;
         }
 

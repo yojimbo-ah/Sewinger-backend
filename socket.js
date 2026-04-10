@@ -14,6 +14,7 @@ import dotenv from 'dotenv'
 
 dotenv.config() ;
 let io;
+let activeUsers = new Set(); // Track unique user IDs instead of connection count
 
 export const initSocket = (server) => {
   io = new Server(server, {
@@ -41,12 +42,16 @@ export const initSocket = (server) => {
 
   io.on('connection', async (socket) => {
     try {
-
       const userId = socket.userId ;
       const user = await User.findById(userId) ;
       if (!user) {
         throw new Error('Couldnt find user with similair data') ;
       }
+
+      // Add user to active users set
+      activeUsers.add(userId);
+      console.log('User connected. Active users:', activeUsers.size, 'User ID:', userId);
+
       // connecting the user to his private chat so he can get private messages directly to his id
       // and might use it in the future for notification systems and stuff like that since it would be great
       // and it the best and easiest method for real time updating for rest api app
@@ -66,9 +71,30 @@ export const initSocket = (server) => {
       //this is for public chats handlelling :
       addMessageToGroupChat(io , socket) ;
 
+      // Broadcast active users count on connection only the adnins listen for this in the frontend
+      io.emit('activeUsers', activeUsers.size);
+
       // might add more methods in the future // 
       socket.on('disconnect', () => {
-        console.log('Client disconnected:', socket.id);
+        // Check if user has other active sockets
+        const userSockets = io.sockets.sockets;
+        let hasOtherConnections = false;
+        
+        for (let sock of userSockets.values()) {
+          if (sock.userId === userId && sock.id !== socket.id) {
+            hasOtherConnections = true;
+            break;
+          }
+        }
+        
+        // Only remove user if they have no other connections
+        if (!hasOtherConnections) {
+          activeUsers.delete(userId);
+        }
+        
+        console.log('Client disconnected:', socket.id, 'Active users:', activeUsers.size);
+        // Broadcast updated active users count on disconnect
+        io.emit('activeUsers', activeUsers.size);
       });
 
     } catch (error) {
@@ -76,6 +102,11 @@ export const initSocket = (server) => {
     }
 
   });
+
+  // Broadcast active users count periodically (every 30 seconds) so doesnt cause a lot of load on the backend server
+  setInterval(() => {
+    io.emit('activeUsers', activeUsers.size);
+  }, 30000);
 
   return io;
 };

@@ -1,5 +1,6 @@
 import User from "../models/User.js"
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { friendRequestSent, friendRequestAccepted, friendRequestDenied } from "../helperFunctions/emailPages.js";
 import Chat from "../models/Chat.js";
 
 
@@ -8,6 +9,10 @@ const postFriendInvite = async (req , res , next) => {
     const friendId = req.body.friendId ;
     console.log(friendId) ;
     try {
+        // Check if user is trying to send a friend request to themselves
+        if (userId.toString() === friendId.toString()) {
+            return res.status(400).json({message : 'You cannot send a friend request to yourself'}) ;
+        }
 
         const user = await User.findById(userId) ;
 
@@ -41,11 +46,11 @@ const postFriendInvite = async (req , res , next) => {
 
         await user.save() ;
         await friend.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : friend.email ,
-            subject : 'Friend request' ,
-            html : `<p>${user.name.lastName} ${user.name.firstName} has sent you a friend request</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: friend.email,
+            subject: 'Friend Request',
+            html: friendRequestSent(`${user.name.firstName} ${user.name.lastName}`)
         })
         return res.status(200).json({message : 'Request was added'}) ;
     } catch (error) {
@@ -177,11 +182,11 @@ const approveFriendInvite = async (req , res , next) => {
             await friend.save() ;
             await newChat.save() ;
             
-            transporter.sendMail({
-                from : `Sewinger team <${process.env.EMAIL}>` ,
-                to : friend.email ,
-                subject : 'Approving friend request' ,
-                html : `<p>${user.name.firstName} ${friend.name.lastName} is now your friend</p>`
+            resend.emails.send({
+                from: 'Handlyy <no_reply@handly.tech>',
+                to: friend.email,
+                subject: 'Friend Request Accepted',
+                html: friendRequestAccepted(`${user.name.firstName} ${user.name.lastName}`)
             })
 
             return res.status(200).json({message : 'Friend had been added'}) ;
@@ -189,11 +194,11 @@ const approveFriendInvite = async (req , res , next) => {
             user.friendsRequests.splice(index1 , 1) ;
             friend.friendsRequests.splice(index2 , 1) ;
 
-            transporter.sendMail({
-                from : `Sewinger team <${process.env.EMAIL}>` ,
-                to : friend.email ,
-                subject : 'Friend request' ,
-                html : `<p>${user.name.firstName} ${user.name.lastName} has denied your friend request</p>`
+            resend.emails.send({
+                from: 'Handlyy <no_reply@handly.tech>',
+                to: friend.email,
+                subject: 'Friend Request Declined',
+                html: friendRequestDenied(`${user.name.firstName} ${user.name.lastName}`)
             })
 
             await user.save() ;

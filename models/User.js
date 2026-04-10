@@ -95,6 +95,9 @@ const userSchema = new Schema({
         required : true ,
         ref :'Order'
     }]  ,
+    // the rest of the field are for the communication side of the app 
+    // it seld explanatory , it just refrence to other User schemas 
+    // array of refrernces 
     friends : [{
         _id : false ,
         friendId : {

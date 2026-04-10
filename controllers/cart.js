@@ -1,6 +1,7 @@
 import Product from "../models/Product.js";
 import User from "../models/User.js" ;
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { cartReset } from "../helperFunctions/emailPages.js";
 
 const updateItemQuantity = async (req , res , next) => {
     const userId = req.user.id ;
@@ -64,11 +65,11 @@ const deleteCart = async (req , res , next) => {
         user.cart.items = [] ;
         user.cart.totalPrice = 0 ;
         await user.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Cart reseted' ,
-            html : `<p>Your cart has been reseted</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: user.email,
+            subject: 'Cart Reset',
+            html: cartReset(`${user.name.firstName} ${user.name.lastName}`)
         })
         return res.status(200).json({message : 'cart has been reseted'}) ;
     } catch (error) {

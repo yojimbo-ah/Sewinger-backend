@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 
 // verifys the validaty of the json web token send by the user in evry protected route
 
-export const verifyJWT = async (req , res , next) => {
+export const verifyJWT = (req , res , next) => {
     const authHeader = req.headers.authorization ;
     // we use the Bearer format 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

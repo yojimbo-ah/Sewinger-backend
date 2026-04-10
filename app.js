@@ -24,6 +24,8 @@ import detailRouter from "./routes/detailManagement.js";
 import notificationRouter from "./routes/notification.js";
 import sellerRouter from "./routes/seller.js";
 import workshopRouter from "./routes/workshop.js";
+import inquiryRouter from "./routes/inquiry.js";
+import buyerRouter from "./routes/buyer.js";
 
 
 const app = express() ;
@@ -56,7 +58,9 @@ app.use('/friend' , friendRouter) ;
 app.use('/detail' , detailRouter) ;
 app.use('/notification' , notificationRouter) ;
 app.use('/seller' , sellerRouter) ;
+app.use('/buyer' , buyerRouter) ;
 app.use('/workshop' , workshopRouter) ;
+app.use('/inquiry' , inquiryRouter) ;
 
 // connect to the database with mongoose
 // mongoose by default does the setup of importing iteself 
