@@ -14,6 +14,8 @@ accountRouter.post('/forgot' , account.resetAccount);
 accountRouter.patch('/forgot/:token' , account.resetAccountVer);
 accountRouter.post('/jwtVer' , account.confirmJwt);
 accountRouter.put('/request/seller' , verifyJWT , uploadMixed.array('files' , MAX_UPLOAD) , account.putUserWaitSellerRequest)
+accountRouter.get('/wallet' , verifyJWT , account.getWallet) ;
+accountRouter.put('/wallet/add' , verifyJWT , account.addFakeMoneyToWallet) ;
 
 
 export default accountRouter ;

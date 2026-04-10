@@ -1,11 +1,9 @@
 import express from "express" ;
-import path from 'path' ;
-import { fileURLToPath } from 'url';
-import { dirname} from 'path';
 import mongoose from "mongoose";
 import http from "http" ;
 import { initSocket } from "./socket.js";
 import dotenv from 'dotenv'
+import cors from 'cors'
 
 dotenv.config() ;
 
@@ -26,9 +24,9 @@ import detailRouter from "./routes/detailManagement.js";
 import notificationRouter from "./routes/notification.js";
 import sellerRouter from "./routes/seller.js";
 import workshopRouter from "./routes/workshop.js";
+import inquiryRouter from "./routes/inquiry.js";
+import buyerRouter from "./routes/buyer.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express() ;
 
@@ -37,15 +35,15 @@ initSocket(server)
 
 app.use(express.json()) ;
 
+// CORS setup with proper options
+const corsOptions = {
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
 
-
-// CORS setup 
-app.use((req , res , next) => {
-    res.setHeader('Access-Control-Allow-Origin' , '*') ;
-    res.setHeader('Access-Control-Allow-Methods' , 'GET,POST,PUT,PATCH,DELETE')
-    res.setHeader('Access-Control-Allow-Headers' , 'Content-Type , Authorization')
-    next()
-})
+app.use(cors(corsOptions));
 
 // the routes of the app they are well seperated and you can check evry route
 // individually 
@@ -60,7 +58,9 @@ app.use('/friend' , friendRouter) ;
 app.use('/detail' , detailRouter) ;
 app.use('/notification' , notificationRouter) ;
 app.use('/seller' , sellerRouter) ;
+app.use('/buyer' , buyerRouter) ;
 app.use('/workshop' , workshopRouter) ;
+app.use('/inquiry' , inquiryRouter) ;
 
 // connect to the database with mongoose
 // mongoose by default does the setup of importing iteself 

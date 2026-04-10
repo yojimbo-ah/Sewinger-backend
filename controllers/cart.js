@@ -1,6 +1,7 @@
 import Product from "../models/Product.js";
 import User from "../models/User.js" ;
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { cartReset } from "../helperFunctions/emailPages.js";
 
 const updateItemQuantity = async (req , res , next) => {
     const userId = req.user.id ;
@@ -24,29 +25,28 @@ const updateItemQuantity = async (req , res , next) => {
             return item.productId.toString() === productId.toString() ;
         })
 
+        if (!userProduct) {
+            return res.status(400).json({message : 'Product is not in your cart'}) ;
+        }
+
+
+        if (quantity > product.availbleItems) {
+            return res.status(400).json({message : 'cant update , there isnt sufficent availble items'}) ;
+        }
 
         if (userProduct.quantity < quantity) {
 
             const updatedQuantity = quantity - userProduct.quantity ;
-            if (updatedQuantity > product.availbleItems) {
-                return res.status(400).json({message : 'cant update , there isnt sufficent availble items'}) ;
-            }
             userProduct.quantity += updatedQuantity ;
-            if (updatedQuantity === product.availbleItems) {
-                product.availble = false ;
-            }
-            product.availbleItems -= updatedQuantity ;
             user.cart.totalPrice += updatedQuantity * product.price 
 
         } else if (userProduct.quantity > quantity) {
 
             const updatedQuantity = userProduct.quantity - quantity ;
-            product.availbleItems += updatedQuantity ;
             userProduct.quantity = quantity ;
             user.cart.totalPrice -= product.price *updatedQuantity ;
             
         } 
-        await product.save() ;
         await user.save() ;
         return res.status(200).json({message : `product with id : ${productId}`}) ;
     } catch (error) {
@@ -61,28 +61,15 @@ const deleteCart = async (req , res , next) => {
         if (!user) {
             return res.status(400).json({message : 'invalid user , couldnt empty cart try again'}) ;
         }
-        user.cart.items.forEach(async (item) => {
-            const productId = item.productId ;
-            const quantity = item.quantity ;
-            const product = await Product.findById(productId) ;
-            if (!product) {
-                return res.status(400).json({message : 'couldnt find a product with similair id'}) ;
-            }
-            product.availbleItems += quantity ;
-            if (!product.availble) {
-                product.availble = true ;
-            }
-            await product.save() ;
-        })
 
         user.cart.items = [] ;
         user.cart.totalPrice = 0 ;
         await user.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Cart reseted' ,
-            html : `<p>Your cart has been reseted</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: user.email,
+            subject: 'Cart Reset',
+            html: cartReset(`${user.name.firstName} ${user.name.lastName}`)
         })
         return res.status(200).json({message : 'cart has been reseted'}) ;
     } catch (error) {
@@ -99,10 +86,6 @@ const deleteProductFromCart = async (req , res , next) => {
         if (!user) {
             return res.status(400).json({message : 'couldnt find your user'}) ;
         }
-        const product = await Product.findById(productId) ;
-        if (!product) {
-            return res.status(400).json({message : 'couldnt find product with similair id'}) ;
-        }
         let quantity ;
         const newCartItems = user.cart.items.filter((item) => {
             if (item.productId.toString() === productId.toString()) {
@@ -110,14 +93,16 @@ const deleteProductFromCart = async (req , res , next) => {
             }
             return item.productId.toString() !== productId.toString()
         })
-        if (!product.availble) {
-            product.availble = true ;
+        if (!quantity) {
+            return res.status(400).json({message : 'product is not inside your cart'}) ;
         }
-        product.availbleItems += quantity ;
+        const product = await Product.findById(productId) ;
+        if (!product) {
+            return res.status(400).json({message : 'couldnt find product with similair id'}) ;
+        }
         user.cart.items = newCartItems ;
         user.cart.totalPrice -= quantity * product.price ;
         await user.save() ;
-        await product.save()
         return res.status(200).json({message : `product with id : ${productId} was removed from cart`})
     } catch (error) {
         return res.status(400).json({message : 'Iternal server error'}) ;
@@ -143,13 +128,16 @@ const buyProduct = async (req , res , next) => {
             return res.status(400).json({message : 'Couldnt find a product with same id'})
         }
 
-        if (product.quantity < quantity) {
-            return res.status(400).json({message : 'There isnt enough availble items'}) ;
-        }
         let cartItems = user.cart.items ;
         let itemIndex = cartItems.findIndex(item  => {
             return item.productId.toString() === product.id.toString() ;
         }) ;
+
+        const currentQuantityInCart = itemIndex < 0 ? 0 : cartItems[itemIndex].quantity ;
+        const wantedTotalQuantity = currentQuantityInCart + quantity ;
+        if (wantedTotalQuantity > product.availbleItems) {
+            return res.status(400).json({message : 'There isnt enough availble items'}) ;
+        }
 
         if (itemIndex < 0) {
             cartItems.push({
@@ -162,16 +150,7 @@ const buyProduct = async (req , res , next) => {
 
         user.cart.totalPrice += quantity * product.price ;
 
-        if (product.availbleItems === quantity) {
-
-            product.quantity = 0 ;
-            product.availble = false ;
-
-        } else {
-            product.availbleItems -= quantity ;
-        }
         await user.save() ;
-        await product.save() ;
         return res.status(200).json({message : 'items were added to cart' , cart : user.cart}) ;
         
     } catch (error) {

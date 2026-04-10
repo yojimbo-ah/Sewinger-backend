@@ -1,5 +1,100 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import Product from "../models/Product.js";
+import ProductInquiry from "../models/ProductInquiry.js";
+
+const getProductAnalytics = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { productId } = req.params;
+
+    // Verify user is seller/admin
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    if (user.power !== 'seller' && user.power !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Get product
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    // Get all buyers for this product
+    const orders = await Order.find({
+      'order.items.itemId': productId
+    }).populate('ownerId', 'name email bio.profileImage');
+
+    const buyers = [];
+    const uniqueBuyerIds = new Set();
+    let totalSales = 0;
+    let totalQuantity = 0;
+
+    orders.forEach(order => {
+      order.order.items.forEach(item => {
+        if (item.itemId.toString() === productId) {
+          totalSales += item.priceWhenBought * item.quantity;
+          totalQuantity += item.quantity;
+          uniqueBuyerIds.add(order.ownerId._id.toString());
+          buyers.push({
+            buyerId: order.ownerId._id,
+            buyerName: order.ownerId.name,
+            buyerEmail: order.ownerId.email,
+            buyerImage: order.ownerId.bio?.profileImage,
+            quantity: item.quantity,
+            pricePerUnit: item.priceWhenBought,
+            totalPrice: item.priceWhenBought * item.quantity,
+            purchaseDate: order.createdAt
+          });
+        }
+      });
+    });
+
+    // Get inquiries for this product
+    const inquiries = await ProductInquiry.find({
+      productId,
+      sellerId: userId
+    }).populate([
+      { path: 'buyerId', select: 'name email bio.profileImage' },
+      { path: 'productId', select: 'name' }
+    ]);
+
+    const inquiryStats = {
+      total: inquiries.length,
+      open: inquiries.filter(i => i.status === 'open').length,
+      resolved: inquiries.filter(i => i.status === 'resolved').length,
+      closed: inquiries.filter(i => i.status === 'closed').length
+    };
+
+    res.json({
+      success: true,
+      analytics: {
+        product: {
+          id: product._id,
+          name: product.name,
+          image: product.images?.mainImage,
+          price: product.price,
+          available: product.availbleItems
+        },
+        sales: {
+          totalRevenue: totalSales,
+          totalUnitsSold: totalQuantity,
+          totalBuyers: uniqueBuyerIds.size,
+          averagePerBuyer: uniqueBuyerIds.size > 0 ? (totalSales / uniqueBuyerIds.size).toFixed(2) : 0
+        },
+        inquiries: inquiryStats,
+        buyers: buyers.sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate)),
+        inquiryDetails: inquiries
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching product analytics:', error);
+    res.status(500).json({ message: 'Failed to fetch analytics', error: error.message });
+  }
+};
 
 const getUsersWhoBoughtMyProduct = async (req , res , next) => {
     const userId = req.user.id ;
@@ -94,5 +189,9 @@ const getUserWhoBoughtMyProduct = async (req , res , next) => {
 }
 
 
-const seller = {getUsersWhoBoughtMyProduct , getUserWhoBoughtMyProduct} ;
+const seller = {
+  getProductAnalytics,
+  getUsersWhoBoughtMyProduct,
+  getUserWhoBoughtMyProduct
+};
 export default seller ;

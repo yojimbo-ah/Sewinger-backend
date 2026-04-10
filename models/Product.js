@@ -14,15 +14,16 @@ const productSchema = new Schema({
     reviews : [{
         comment : {
             type : String ,
-            length : 200 ,
-            requierd : true
+            maxlength : 200 ,
+            required : true
         } ,
         rating : {
             type : Number ,
-            min : 0 ,
+            min : 1 ,
             max : 5 ,
-            validator : {
-                validator : Number.isInteger
+            validate : {
+                validator : Number.isInteger,
+                message : 'Rating must be an integer'
             } ,
             required : true
         } , 
@@ -31,10 +32,14 @@ const productSchema = new Schema({
             required : true ,
             ref : 'User'
         } ,
-        addedAt : {
+        createdAt : {
             type : Date ,
             default : Date.now ,
             required : true
+        } ,
+        updatedAt : {
+            type : Date ,
+            default : Date.now
         }
     }] ,
     categories : [{

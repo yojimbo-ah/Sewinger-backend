@@ -1,5 +1,6 @@
 import User from "../models/User.js"
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { friendRequestSent, friendRequestAccepted, friendRequestDenied } from "../helperFunctions/emailPages.js";
 import Chat from "../models/Chat.js";
 
 
@@ -8,6 +9,10 @@ const postFriendInvite = async (req , res , next) => {
     const friendId = req.body.friendId ;
     console.log(friendId) ;
     try {
+        // Check if user is trying to send a friend request to themselves
+        if (userId.toString() === friendId.toString()) {
+            return res.status(400).json({message : 'You cannot send a friend request to yourself'}) ;
+        }
 
         const user = await User.findById(userId) ;
 
@@ -41,11 +46,11 @@ const postFriendInvite = async (req , res , next) => {
 
         await user.save() ;
         await friend.save() ;
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : friend.email ,
-            subject : 'Friend request' ,
-            html : `<p>${user.name.lastName} ${user.name.firstName} has sent you a friend request</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: friend.email,
+            subject: 'Friend Request',
+            html: friendRequestSent(`${user.name.firstName} ${user.name.lastName}`)
         })
         return res.status(200).json({message : 'Request was added'}) ;
     } catch (error) {
@@ -177,11 +182,11 @@ const approveFriendInvite = async (req , res , next) => {
             await friend.save() ;
             await newChat.save() ;
             
-            transporter.sendMail({
-                from : `Sewinger team <${process.env.EMAIL}>` ,
-                to : friend.email ,
-                subject : 'Approving friend request' ,
-                html : `<p>${user.name.firstName} ${friend.name.lastName} is now your friend</p>`
+            resend.emails.send({
+                from: 'Handlyy <no_reply@handly.tech>',
+                to: friend.email,
+                subject: 'Friend Request Accepted',
+                html: friendRequestAccepted(`${user.name.firstName} ${user.name.lastName}`)
             })
 
             return res.status(200).json({message : 'Friend had been added'}) ;
@@ -189,11 +194,11 @@ const approveFriendInvite = async (req , res , next) => {
             user.friendsRequests.splice(index1 , 1) ;
             friend.friendsRequests.splice(index2 , 1) ;
 
-            transporter.sendMail({
-                from : `Sewinger team <${process.env.EMAIL}>` ,
-                to : friend.email ,
-                subject : 'Friend request' ,
-                html : `<p>${user.name.firstName} ${user.name.lastName} has denied your friend request</p>`
+            resend.emails.send({
+                from: 'Handlyy <no_reply@handly.tech>',
+                to: friend.email,
+                subject: 'Friend Request Declined',
+                html: friendRequestDenied(`${user.name.firstName} ${user.name.lastName}`)
             })
 
             await user.save() ;
@@ -262,6 +267,9 @@ const deleteFriend = async (req , res , next) => {
 
 const getUserFriends = async (req , res , next) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
 
     try {
         const user = await User.findById(userId).populate('friends.friendId') ;
@@ -270,18 +278,28 @@ const getUserFriends = async (req , res , next) => {
             return res.status(400).json({message : 'Couldnt find user with similair informations'}) ;
         }
 
-        const friends = user.friends.map((friend , index) => {
+        const totalFriends = user.friends.length ;
+        const totalPages = Math.ceil(totalFriends / limit) ;
+
+        const friends = user.friends.slice(skip, skip + limit).map((friend) => {
             return {
                 friendId : friend.friendId._id ,
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : friend.friendId.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage ,
+                email : friend.friendId.email
             }
         })
 
-        return res.status(200).json({friends : friends}) ;
+        return res.status(200).json({
+            total : totalFriends ,
+            data : friends ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
 
     } catch (error) {
         console.log(error) ;
@@ -291,6 +309,9 @@ const getUserFriends = async (req , res , next) => {
 
 const getUserPendingFriends = async (req , res , next) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
 
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
@@ -299,21 +320,33 @@ const getUserPendingFriends = async (req , res , next) => {
         }
 
         // first we filter depending on the request was sent by me , meaning the user then we map it to create new object from it
-        const pendingRequests = user.friendsRequests.filter(request => {
+        const allPendingRequests = user.friendsRequests.filter(request => {
             if (request.sentBy === 'me') {
                 return true ;
             }
-        }).map((request) => {
+        }) ;
+
+        const totalPending = allPendingRequests.length ;
+        const totalPages = Math.ceil(totalPending / limit) ;
+
+        const pendingRequests = allPendingRequests.slice(skip, skip + limit).map((request) => {
             return {
                 friendId : request.friendId._id ,
                 name : {
                     firstName : request.friendId.name.firstName ,
                     lastName : request.friendId.name.lastName
                 } ,
-                profileImage : request.friendId.bio.profileImage
+                profileImage : request.friendId.bio.profileImage ,
+                email : request.friendId.email
             }
         })
-        return res.status(200).json({pendingRequests : pendingRequests}) ;
+        return res.status(200).json({
+            total : totalPending ,
+            data : pendingRequests ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
 
     } catch (error) {
         console.log(error) ;
@@ -323,6 +356,10 @@ const getUserPendingFriends = async (req , res , next) => {
 
 const getUserFriendRequests = async (req , res , next ) => {
     const userId = req.user.id ;
+    const page = Number(req.query.page) || 1 ;
+    const limit = Number(req.query.limit) || 12 ;
+    const skip = (page - 1) * limit ;
+
     try {
         const user = await User.findById(userId).populate('friendsRequests.friendId') ;
         
@@ -330,21 +367,33 @@ const getUserFriendRequests = async (req , res , next ) => {
             return res.status(400).json({message : 'Couldnt find user with similair information'}) ;
         }
         // first we filter depending on the request was sent by friend , meaning the user then we map it to create new object from it
-        const friendsRequests = user.friendsRequests.filter((friend) => {
+        const allFriendsRequests = user.friendsRequests.filter((friend) => {
             if (friend.sentBy === 'friend') {
                 return true ;
             }
-        }).map(friend => {
+        }) ;
+
+        const totalRequests = allFriendsRequests.length ;
+        const totalPages = Math.ceil(totalRequests / limit) ;
+
+        const friendsRequests = allFriendsRequests.slice(skip, skip + limit).map(friend => {
             return {
                 friendId : friend.friendId._id ,
                 name : {
                     firstName : friend.friendId.name.firstName ,
                     lastName : friend.friendId.name.lastName
                 } ,
-                profileImage : friend.friendId.bio.profileImage
+                profileImage : friend.friendId.bio.profileImage ,
+                email : friend.friendId.email
             }
         })
-        return res.status(200).json({friendsRequests : friendsRequests}) ;
+        return res.status(200).json({
+            total : totalRequests ,
+            data : friendsRequests ,
+            page : page ,
+            limit : limit ,
+            totalPages : totalPages
+        }) ;
     } catch (error) {
         return res.status(400).json({message : 'Iternal server error'})
     }

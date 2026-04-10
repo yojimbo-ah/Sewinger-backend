@@ -74,6 +74,16 @@ const userSchema = new Schema({
             }
         }]
     } ,
+    // this will be considered as fake wallet 
+    // it will not be integreated via like stripe api or chargily api
+    // since i think it out of the scope of this project
+    wallet : {
+        balance : {
+            type : Number ,
+            required : true ,
+            default : 0
+        }
+    } ,
     power : { 
         type : String ,
         required : true ,
@@ -85,6 +95,9 @@ const userSchema = new Schema({
         required : true ,
         ref :'Order'
     }]  ,
+    // the rest of the field are for the communication side of the app 
+    // it seld explanatory , it just refrence to other User schemas 
+    // array of refrernces 
     friends : [{
         _id : false ,
         friendId : {

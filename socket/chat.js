@@ -24,6 +24,9 @@ const addMessageToChat = (io , socket) => {
             io.to(`user:${friendId}`).emit('receive_message', newMessage._doc)
             // we dont wait to save the message then we publish , we publish
             // back then we save since we dont want to wait the database response
+            // because it might take a lot of time to response (yes it may cause error)
+            // the message is show for both the users in there browser but the message doesnt 
+            // get saved in the database but it is extremly unlikely to happen
             const chat = await Chat.findOne({
                 users: { $all: [userId, friendId] } ,
                 $expr: { $eq: [{ $size: "$users" }, 2] }

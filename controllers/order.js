@@ -1,12 +1,9 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
-import path from 'path' 
-import { fileURLToPath } from "url";
-import transporter from "../service/emailTransporter.js";
+import { resend } from "../service/emailTransporter.js";
+import { orderConfirmation } from "../helperFunctions/emailPages.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 
 const putOrder = async (req , res , next) => {
@@ -16,17 +13,56 @@ const putOrder = async (req , res , next) => {
         const user = await User.findById(userId) ;
 
         if (!user) {
-            return res.starus(400).json({message : 'Couldnt find user with similair id'}) ;
+            return res.status(400).json({message : 'Couldnt find user with similair id'}) ;
         }
 
         await user.populate('cart.items.productId') ;
         if (user.cart.items.length === 0) {
-            res.status(400).json({message : 'error'})
+            return res.status(400).json({message : 'Cart is empty'})
         }
+
+        const totalPrice = Number(user.cart.totalPrice.toFixed(2)) ;
+
+        const currentBalance = Number((user.wallet?.balance ?? 0).toFixed(2)) ;
+        if (!user.wallet || typeof user.wallet.balance !== 'number') {
+            user.wallet = {balance : currentBalance} ;
+        }
+
+        if (currentBalance < totalPrice) {
+            return res.status(400).json({
+                message : 'Insufficent wallet balance',
+                wallet : {
+                    balance : currentBalance ,
+                    required : totalPrice
+                }
+            }) ;
+        }
+
+        const missingProducts = user.cart.items.find(item => !item.productId) ;
+        if (missingProducts) {
+            return res.status(400).json({message : 'One or more products in your cart no longer exist'}) ;
+        }
+
+        const insufficentProduct = user.cart.items.find(item => {
+            return item.quantity > item.productId.availbleItems ;
+        }) ;
+
+        if (insufficentProduct) {
+            return res.status(400).json({
+                message : 'There isnt enough stock to create this order',
+                product : {
+                    id : insufficentProduct.productId._id ,
+                    name : insufficentProduct.productId.name ,
+                    available : insufficentProduct.productId.availbleItems ,
+                    wanted : insufficentProduct.quantity
+                }
+            }) ;
+        }
+
         const order = new Order({
             ownerId : userId ,
             order : {
-                totalPrice : user.cart.totalPrice.toFixed(2) ,
+                totalPrice : totalPrice ,
                 items : user.cart.items.map(item => {
                     return {
                         quantity : item.quantity ,
@@ -38,19 +74,38 @@ const putOrder = async (req , res , next) => {
             }
         })
 
+        const productUpdatePromises = user.cart.items.map(async(item) => {
+            const product = item.productId ;
+            product.availbleItems -= item.quantity ;
+            if (product.availbleItems <= 0) {
+                product.availbleItems = 0 ;
+                product.availble = false ;
+            }
+            await product.save() ;
+        }) ;
+        await Promise.all(productUpdatePromises) ;
+
+        user.wallet.balance = currentBalance - totalPrice ;
+        user.wallet.balance = Number(user.wallet.balance.toFixed(2)) ;
+
         user.cart = {
             totalPrice : 0 ,
             items : []
         }
         await user.save() ;
         await order.save()
-        transporter.sendMail({
-            from : `Sewinger team <${process.env.EMAIL}>` ,
-            to : user.email ,
-            subject : 'Order added' ,
-            html : `<p>Order added under your name</p>`
+        resend.emails.send({
+            from: 'Handlyy <no_reply@handly.tech>',
+            to: user.email,
+            subject: 'Order Confirmation',
+            html: orderConfirmation(order._id.toString(), new Date().toLocaleDateString(), totalPrice, `${user.name.firstName} ${user.name.lastName}`)
         })
-        return res.status(200).json({message : 'order had been created'}) ;
+        return res.status(200).json({
+            message : 'order had been created',
+            wallet : {
+                balance : user.wallet.balance
+            }
+        }) ;
     } catch (error) {
         console.log(error) ;
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -64,13 +119,10 @@ const getOrderInvoice = async (req , res , next) => {
 
     try {
         const user = await User.findById(userId) ;
-        console.log(user) ;
         if (!user) {
-            console.log(1)
             return res.status(400).json({message : 'Couldnt find user with familair id'}) ;
         }
         const order = await Order.findById(orderId) ;
-        console.log(2)
         if (!order) {
             return res.status(400).json({message : 'Couldnt find order with similair id'}) ;
         }
@@ -78,7 +130,10 @@ const getOrderInvoice = async (req , res , next) => {
             return res.status(400).json({message : 'You cant get the invoice since you dont own the order'}) ;
         }
 
-        
+        // PDFDocument library helps us generate documents on the fly with the data we want
+        // i used so users can retrieve there invoices it is not complicated to use or
+        // anything like that , pretty good documentation on the web (ai really helps
+        // with these kinda stuff )        
         const doc = new PDFDocument();
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', 'attachment; filename="document.pdf"');
