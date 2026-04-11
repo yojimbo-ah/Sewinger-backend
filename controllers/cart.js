@@ -1,6 +1,5 @@
 import Product from "../models/Product.js";
 import User from "../models/User.js" ;
-import { resend } from "../service/emailTransporter.js";
 import { cartReset } from "../helperFunctions/emailPages.js";
 
 const updateItemQuantity = async (req , res , next) => {

@@ -1,11 +1,9 @@
 import dotenv from 'dotenv' ;
-import { Resend } from 'resend';
 import { createTransport } from "nodemailer";
 
 dotenv.config() ;
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+// i just use this transporter for testing purpuses ;
 const transporter = createTransport({
     service : 'gmail' ,
     auth : {
@@ -14,5 +12,4 @@ const transporter = createTransport({
     } 
 })
 
-export {resend} ;
 export default transporter ;

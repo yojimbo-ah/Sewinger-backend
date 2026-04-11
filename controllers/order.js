@@ -1,8 +1,8 @@
 import User from "../models/User.js";
 import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
-import { resend } from "../service/emailTransporter.js";
 import { orderConfirmation } from "../helperFunctions/emailPages.js";
+import resend from "../service/resend.js";
 
 
 
