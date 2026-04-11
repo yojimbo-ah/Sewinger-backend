@@ -1,5 +1,4 @@
 import User from "../models/User.js"
-import { resend } from "../service/emailTransporter.js";
 import { friendRequestSent, friendRequestAccepted, friendRequestDenied } from "../helperFunctions/emailPages.js";
 import Chat from "../models/Chat.js";
 

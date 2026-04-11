@@ -1,3 +1,7 @@
+// as you can see here i didnt use a packages such as ejs or handebars for sending html 
+// i think it well make it more complicated and adds a new layer of complixity 
+// so we just use normal string and we put are data in it
+
 
 const baseStyles = `
   <style>
