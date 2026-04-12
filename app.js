@@ -1,11 +1,8 @@
 import express from "express" ;
-import mongoose from "mongoose";
-import http from "http" ;
-import { initSocket } from "./socket.js";
-import dotenv from 'dotenv'
 import cors from 'cors'
-
-dotenv.config() ;
+// app works like import for other files (index.js and setup.js)
+// why do like this so we dont have looped imported might cause problems
+// in runtime (not interpreting time)
 
 // all the data is handled by external cloud storage 
 // cloudinary for files (for now just pictures , in the future vids) 
@@ -27,52 +24,50 @@ import workshopRouter from "./routes/workshop.js";
 import inquiryRouter from "./routes/inquiry.js";
 import buyerRouter from "./routes/buyer.js";
 
+// Create and configure the Express app
+export const createApp = () => {
+  const app = express();
 
-const app = express() ;
+  app.use(express.json());
 
-const server = http.createServer(app) ;
-initSocket(server)
-
-app.use(express.json()) ;
-
-// CORS setup with proper options
-const corsOptions = {
-    origin: ['http://localhost:5173', 'http://localhost:3000' , 'https://handlyy.tech'],
+  // CORS setup with proper options
+  const corsOptions = {
+    origin: function (origin, callback) {
+      const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000', 'https://handlyy.tech', 'http://localhost:5000'];
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
+    optionsSuccessStatus: 204,
+    preflightContinue: false
+  };
+
+  app.use(cors(corsOptions));
+
+  // the routes of the app they are well seperated and you can check evry route
+  // individually 
+  app.use('/product', productRouter);
+  app.use('/account', accountRouter);
+  app.use('/cart', cartRouter);
+  app.use('/order', orderRouter);
+  app.use('/admin', adminRouter);
+  app.use('/chat', chatRouter);
+  app.use('/friend', friendRouter);
+  app.use('/detail', detailRouter);
+  app.use('/notification', notificationRouter);
+  app.use('/seller', sellerRouter);
+  app.use('/buyer', buyerRouter);
+  app.use('/workshop', workshopRouter);
+  app.use('/inquiry', inquiryRouter);
+
+  return app;
 };
 
-app.use(cors(corsOptions));
-
-// the routes of the app they are well seperated and you can check evry route
-// individually 
-
-app.use('/product' , productRouter) ;
-app.use('/account' , accountRouter);
-app.use('/cart' , cartRouter) ;
-app.use('/order' , orderRouter) ;
-app.use('/admin' , adminRouter) ;
-app.use('/chat' , chatRouter) ;
-app.use('/friend' , friendRouter) ;
-app.use('/detail' , detailRouter) ;
-app.use('/notification' , notificationRouter) ;
-app.use('/seller' , sellerRouter) ;
-app.use('/buyer' , buyerRouter) ;
-app.use('/workshop' , workshopRouter) ;
-app.use('/inquiry' , inquiryRouter) ;
-
-// connect to the database with mongoose
-// mongoose by default does the setup of importing iteself 
-// to other files inside the import names "moongose"
-// no need to create a files like cloudinary.js and socket.js 
-mongoose.connect(`mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`)
-    .then(result => {
-        server.listen(process.env.LISTEN_AT || 3000 , () => {
-            console.log('conneceted the server')
-        }) ;
-    })
-    .catch(error => {
-        console.log(error);
-        console.log('cant connect')
-    })
+export default createApp();
