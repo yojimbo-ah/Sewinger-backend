@@ -115,7 +115,7 @@ const resetAccount = async (req , res , next) => {
     })
     try {
         await newToken.save() ;
-        const resetLink = `${process.env.FRONTEND_URL}/account/account/forgot/${randomString}` ;
+        const resetLink = `${process.env.FRONTEND_URL}/account/forgot/${randomString}` ;
         const data = resend.emails.send({
             from : 'handlyy corp <resetAccount@handlyy.tech>' ,
             to : user.email ,

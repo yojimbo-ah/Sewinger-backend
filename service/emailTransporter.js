@@ -4,6 +4,8 @@ import { createTransport } from "nodemailer";
 dotenv.config() ;
 
 // i just use this transporter for testing purpuses ;
+// you can add your email (gmail) and get the api key 
+// from google , must have two factor authentification on account to work
 const transporter = createTransport({
     service : 'gmail' ,
     auth : {
