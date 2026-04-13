@@ -1,4 +1,6 @@
 // Mock Resend service for testing
+// we use this in place of the real resend library
+// because it returns a fake object that stimulate the real library
 const mockResend = {
   emails: {
     send: jest.fn().mockResolvedValue({

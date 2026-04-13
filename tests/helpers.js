@@ -68,6 +68,10 @@ export const testHelpers = {
 
 // this is global function to initialize the users in the database
 // this users will be used across the testing files
+// they are accessable without imports and reduces duplicate
+// code in the testing file
+
+// thay are self explanitory
 global.createAccountsTobeUsed = async () => {
   try {
     const hashedPassword = await bcrypt.hash('hello123', SALT_ROUNDS);
