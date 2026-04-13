@@ -1,4 +1,7 @@
 // Mock Cloudinary service for testing
+// we use this function in place of the normal logic cloudinary gavesus
+// they make the app think that we are rutring the real object cloudinary
+// returns when we upload a image or file
 const mockCloudinary = {
   uploader: {
     upload: jest.fn().mockResolvedValue({

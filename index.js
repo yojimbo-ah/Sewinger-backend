@@ -17,8 +17,8 @@ const connectDBAndStartServer = async () => {
       `mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`
     );
     
-    const PORT = process.env.LISTEN_AT || 3000;
-    server.listen(PORT, () => {
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Connected to MongoDB and server listening on port ${PORT}`);
     });
   } catch (error) {
