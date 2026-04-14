@@ -38,6 +38,7 @@ const connectDBAndStartServer = async () => {
 
 // Start the application
 connectDBAndStartServer().catch(error => {
+  
   console.error('Fatal error starting application:', error);
   process.exit(1);
 });
