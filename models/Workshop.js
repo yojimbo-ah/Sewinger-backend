@@ -11,8 +11,15 @@ const workshopSchema = new Schema(
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     valid : {
         type : Boolean ,
-        required : true
+        required : true,
+        default: false  // Requires admin validation
     },
+    validationStatus: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+        default: 'pending'
+    },
+    rejectionReason: { type: String, default: null },
     category: { type: String, default: null },
     tags: [{ type: String }],
     description: { type: String, required: true },

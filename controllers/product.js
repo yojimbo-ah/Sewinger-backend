@@ -131,12 +131,56 @@ const getProducts = async (req , res , next) => {
         const limit = PRODUCTS_PER_PAGE; // Always 20 products per page
         const skip = (page - 1) * limit;
 
+        // Build filter object
+        const filter = {valid : true};
+
+        // Search filter: search in name and description
+        if (req.query.search) {
+            filter.$or = [
+                {name : {$regex : req.query.search, $options : 'i'}},
+                {description : {$regex : req.query.search, $options : 'i'}}
+            ];
+        }
+
+        // Category filter
+        if (req.query.category) {
+            filter.categories = {$in : [req.query.category]};
+        }
+
+        // Rating filter: minimum rating
+        if (req.query.minRating) {
+            const minRating = Number.parseFloat(req.query.minRating);
+            filter.$expr = {
+                $gte : [
+                    {
+                        $cond : [
+                            {$gt : [{$size : {$ifNull : ['$reviews', []]}}, 0]},
+                            {$avg : '$reviews.rating'},
+                            0
+                        ]
+                    },
+                    minRating
+                ]
+            };
+        }
+
+        // Price range filter
+        if (req.query.minPrice || req.query.maxPrice) {
+            filter.price = {};
+            if (req.query.minPrice) {
+                filter.price.$gte = Number.parseFloat(req.query.minPrice);
+            }
+            if (req.query.maxPrice) {
+                filter.price.$lte = Number.parseFloat(req.query.maxPrice);
+            }
+        }
+
         const [products , totalProducts] = await Promise.all([
-            Product.find({valid : true})
+            Product.find(filter)
                 .sort({createdAt : -1})
                 .skip(skip)
                 .limit(limit),
-            Product.countDocuments({valid : true})
+            Product.countDocuments(filter)
         ]) ;
 
         const totalPages = Math.max(Math.ceil(totalProducts / limit) , 1);
@@ -153,7 +197,7 @@ const getProducts = async (req , res , next) => {
             }
         }) ;
     } catch (error) {
-        return res.status(500).json({message : 'server again'}) ;
+        return res.status(500).json({message : 'server error'}) ;
     }
 }
 
