@@ -73,6 +73,20 @@ const productSchema = new Schema({
         required : true ,
         default : false
     } ,
+    aiValidationStatus : {
+        // AI filtering status for product quality checks (images, price, description)
+        // pending: awaiting AI analysis
+        // passed: AI approved product quality
+        // flagged: AI detected potential issues (low quality images, price issues, suspicious description)
+        type : String ,
+        enum : ['pending', 'passed', 'flagged'] ,
+        default : 'pending'
+    } ,
+    aiValidationReason : {
+        // Detailed reason from AI validation
+        type : String ,
+        default : null
+    } ,
     availble  : {
         type : Boolean ,
         requierd : true ,

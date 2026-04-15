@@ -21,6 +21,37 @@ initSocket(server);
 
 // Connect to MongoDB and start the server
 const connectDBAndStartServer = async () => {
+  if (!process.env.MONGO_NAME) {
+    throw new Error('Add MONG_NAME env key')
+  }
+  if (!process.env.MONGO_PASSWORD) {
+    throw new Error('Add MONG_PASSWORD env key')
+  }
+  if (!process.env.BCRYPT_CODE) {
+    throw new Error('Add BCRYPT_CODE env key')
+  }
+  if (!process.env.EMAIL) {
+    throw new Error('Add EMAIL env key')
+  }
+  if (!process.env.EMAIL_PASSWORD) {
+    throw new Error('Add EMAIL_PASSWORD env key')
+  }
+  if (!process.env.CLOUDINARY_NAME) {
+    throw new Error('Add CLOUDINARY_NAME env key')
+  }
+  if (!process.env.CLOUDINARY_API_KEY) {
+    throw new Error('Add CLOUDINARY_API_KEY env key')
+  }
+  if (!process.env.CLOUDINARY_API_SECRET) {
+    throw new Error('Add CLOUDINARY_API_SECRET env key')
+  }
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Add RESEND_API_KEY env key')
+  }
+  if (!process.env.HF_KEY) {
+    throw new Error('Add HF_KEY env key')
+  }
+
   try {
     await mongoose.connect(
       `mongodb+srv://${process.env.MONGO_NAME}:${process.env.MONGO_PASSWORD}@cluster0.echqncm.mongodb.net/sewinger?retryWrites=true&w=majority&appName=Cluster0`

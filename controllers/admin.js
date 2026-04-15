@@ -10,6 +10,8 @@ const adminGetPendingProducts = async (req , res , next) => {
     try {
 
         const products = await Product.find({valid : false}).populate('creatorId') ;
+        console.log(`📊 Pending products fetched: ${products.length}`);
+        
         const sentProducts = products.map(product => {
             return {
                 ...product._doc ,
@@ -22,7 +24,8 @@ const adminGetPendingProducts = async (req , res , next) => {
         })
         return res.status(200).json({products : sentProducts}) ;
     } catch (error) {
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        console.error("Error fetching pending products:", error);
+        return res.status(500).json({message : 'Internal server error'}) ;
     }
 }
 
@@ -35,7 +38,8 @@ const adminGetSellerRequests = async (req , res , next) => {
             $or: [
                 { validationStatus: 'manual_review' },
                 { validationStatus: 'pending' },
-                { validationStatus: 'validating' }
+                { validationStatus: 'validating' } ,
+                { validationStatus : 'not_compatible'}
             ]
         }).populate('userId') ;
         
@@ -51,12 +55,14 @@ const adminGetSellerRequests = async (req , res , next) => {
                     firstName : request.userId.name.firstName ,
                     lastName : request.userId.name.lastName
                 } ,
-                profilePicture : request.userId.bio.profilePicture
+                profilePicture : request.userId.bio.profileImage
             }
         })
+        console.log("📊 Seller Requests fetched:", sellerRequests.length);
         return res.status(200).json({requests : sellerRequests}) ;
     } catch (error) {
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        console.error("Error fetching seller requests:", error);
+        return res.status(500).json({message : 'Internal server error'}) ;
     }
 
 }
