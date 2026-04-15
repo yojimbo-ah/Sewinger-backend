@@ -48,8 +48,8 @@ const connectDBAndStartServer = async () => {
   if (!process.env.RESEND_API_KEY) {
     throw new Error('Add RESEND_API_KEY env key')
   }
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error('Add GOOGLE_API_KEY env key')
+  if (!process.env.HF_KEY) {
+    throw new Error('Add HF_KEY env key')
   }
 
   try {

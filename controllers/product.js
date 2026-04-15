@@ -4,6 +4,7 @@ import validator from 'validator' ;
 import cloudinary from "../cloudinary.js";
 import transporter from "../service/emailTransporter.js";
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
+import { validateProductSubmission } from "../service/huggingface-ai.js";
 
 const PRODUCTS_PER_PAGE = 12 ;
 
@@ -118,7 +119,37 @@ const PostProduct = async (req , res , next) => {
         })
 
         const createdProduct = await product.save() ;
-        return res.status(200).json({message : `product created with id : ${createdProduct._id}`})
+        
+        res.status(200).json({message : `product created with id : ${createdProduct._id}`});
+        
+        // Run AI validation asynchronously AFTER response is sent
+        Promise.resolve().then(async () => {
+            try {
+                const validationResult = await validateProductSubmission({
+                    description: description
+                });
+                
+                const statusUpdate = validationResult.passed ? 'passed' : 'flagged';
+                
+                await Product.findByIdAndUpdate(
+                    createdProduct._id,
+                    {
+                        aiValidationStatus: statusUpdate,
+                        aiValidationReason: validationResult.reason
+                    },
+                    { new: true }
+                );
+            } catch (error) {
+                await Product.findByIdAndUpdate(
+                    createdProduct._id,
+                    {
+                        aiValidationStatus: 'pending',
+                        aiValidationReason: `Validation pending`
+                    },
+                    { new: true }
+                ).catch(() => {});
+            }
+        }).catch(() => {});
     } catch (error) {
         next(error) ;
     }

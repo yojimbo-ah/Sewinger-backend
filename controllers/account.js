@@ -11,7 +11,7 @@ import cloudinary from '../cloudinary.js';
 import resend from '../service/resend.js';
 import extractPublicId from '../helperFunctions/cloudinaryImageId.js';
 import streamifier from 'streamifier' ;
-import { validateSellerRequest } from '../google-generative-ai.js';
+import { validateSellerDescription } from '../service/huggingface-ai.js';
 import { resetPassword, sendEmailSignUp } from '../helperFunctions/emailPages.js';
 
 const confirmJwt = async (req , res , next) => {
@@ -357,19 +357,9 @@ const SignupVer = async (req , res , next) => {
 }
 
 const putUserWaitSellerRequest = async (req , res , next) => {
-    //this will put such that the user can add a folder
-    // that contains pictures , vids , pdfs and stuff like that 
-    // the admins can download that folder and rectify it 
-    // to check if they let the user augmenet from being a clien -> seller 
-    // in the shop
-
-    // the description would the describe the files the user attached
-    // when sending the request to be a seller
     const userId = req.user.id ;
     const description  = req.body.description ;
     const files = req.files ;
-    // we will use this array as memory storage in case of failure so we can delete
-    // what we saved into cloudinary servers
     const uploadedData = [] ;
     try {
 
@@ -388,17 +378,16 @@ const putUserWaitSellerRequest = async (req , res , next) => {
         if (request) {
             return res.status(400).json({message : 'You already have a request , it still pending for admin confimation'}) ;
         }
-        // handeling the files , req.files will the contain the iles
-        // since we user memorystorage in the multer setup 
-        // se we have to handle the uploading to the cloud in the route
-        // beacause i think that gaves us more freedom and let us reuse 
-        // the multer setup if we need it else where
+        
         if (files.length === 0) {
             return res.status(400).json({message : 'You didnt attatch any file to the seller request'}) ;
         }
 
+        if (files.length < 4) {
+            return res.status(400).json({message : 'At least 4 files required: ID, CV, and 2+ product images'}) ;
+        }
+
         const promiseArray = req.files.map(async(file) => {
-            // Extract filename and extension to preserve them properly
             const filenameParts = file.originalname.lastIndexOf('.')
             const nameWithoutExt = filenameParts > 0 ? file.originalname.substring(0, filenameParts) : file.originalname
             const extension = filenameParts > 0 ? file.originalname.substring(filenameParts + 1) : ''
@@ -407,12 +396,9 @@ const putUserWaitSellerRequest = async (req , res , next) => {
                 const stream = cloudinary.uploader.upload_stream({
                         resource_type : file.mimetype.startsWith('image/') ? 'image' : 'raw' ,
                         folder : `seller_requests/seller_${user._id.toString()}` ,
-                        // Use public_id with original filename to preserve it
                         public_id : extension ? `${nameWithoutExt}.${extension}` : nameWithoutExt ,
-                        // Keep these for safety but explicit public_id takes precedence
                         use_filename : true , 
                         unique_filename : false ,
-                        // Force the file to keep extension and be downloadable with correct format
                         force_version : false
                     } ,
                     (error , result) => {
@@ -432,24 +418,23 @@ const putUserWaitSellerRequest = async (req , res , next) => {
             return fileObj ;
         })
 
-        const handlledFilesArray = await Promise.all(promiseArray) || [] ;
+        const handledFilesArray = await Promise.all(promiseArray);
         
-        // Create the request with pending validation status
         const pendingRequest = new UserWaitSellerConf({
             description : description ,
             userId : userId ,
-            files : handlledFilesArray ,
+            files : handledFilesArray ,
             validationStatus : 'validating'
         })
         await pendingRequest.save() ;
         
-        // Run AI validation asynchronously (don't wait for it to complete)
-        // This way the response is sent quickly to the user
-        (async () => {
+        res.status(200).json({message : 'request has been sent succussfully'});
+        
+        // Run AI validation asynchronously AFTER response is sent
+        Promise.resolve().then(async () => {
             try {
-                const aiResult = await validateSellerRequest(description, handlledFilesArray);
+                const aiResult = await validateSellerDescription(description, handledFilesArray);
                 
-                // Update the request status based on AI result
                 const statusUpdate = aiResult.valid ? 'manual_review' : 'not_compatible';
                 
                 await UserWaitSellerConf.findByIdAndUpdate(
@@ -457,24 +442,28 @@ const putUserWaitSellerRequest = async (req , res , next) => {
                     {
                         validationStatus : statusUpdate,
                         aiValidationReason : aiResult.reason
-                    }
+                    },
+                    { new: true }
                 );
-                
-                console.log(`AI Validation completed for request ${pendingRequest._id}: ${statusUpdate} - ${aiResult.reason}`);
+
             } catch (error) {
-                console.error(`AI Validation error for request ${pendingRequest._id}:`, error);
-                // If AI fails, mark as manual review to be safe
-                await UserWaitSellerConf.findByIdAndUpdate(
-                    pendingRequest._id,
-                    {
-                        validationStatus : 'manual_review',
-                        aiValidationReason : 'AI validation encountered an error - requires manual review'
-                    }
-                );
+                try {
+                    // If AI fails, mark as manual review to be safe
+                    const errorResult = await UserWaitSellerConf.findByIdAndUpdate(
+                        pendingRequest._id,
+                        {
+                            validationStatus : 'manual_review',
+                            aiValidationReason : `AI validation encountered an error: ${error.message}`
+                        },
+                        { new: true }
+                    );
+                } catch (updateError) {
+                    // Silently catch update errors
+                }
             }
-        })();
-        
-        return res.status(200).json({message : 'request has been sent succussfully'})
+        }).catch(err => {
+            // Silently catch background task errors
+        });
 
     } catch (error) {
         // in case of error we must destroy the files 
