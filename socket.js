@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { addMessageToChat , addMessageToGroupChat } from './socket/chat.js';
+import { addMessageToChat , addMessageToGroupChat, handleMarkAsRead, handleMarkAsReadGroup } from './socket/chat.js';
 import { handleNotifications } from './socket/notifications.js';
 import jwt from 'jsonwebtoken'
 import User from './models/User.js';
@@ -71,6 +71,12 @@ export const initSocket = (server) => {
 
       //this is for public chats handlelling :
       addMessageToGroupChat(io , socket) ;
+
+      // this is for marking messages as read
+      handleMarkAsRead(io, socket);
+
+      // this is for marking group messages as read
+      handleMarkAsReadGroup(io, socket);
 
       // this is for notifications handling (real-time mark as read, delete, etc)
       handleNotifications(io, socket);

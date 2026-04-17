@@ -16,6 +16,25 @@ const groupChatSchema = new Schema ({
         default : [] ,
         ref : 'MessageGroup'
     }] ,
+    lastMessage : {
+        type : Types.ObjectId ,
+        ref : 'MessageGroup' ,
+        default : null
+    } ,
+    lastMessageAt : {
+        type : Date ,
+        default : null
+    } ,
+    participants : [{
+        userId : {
+            type : Types.ObjectId ,
+            ref : 'User'
+        } ,
+        unreadCount : {
+            type : Number ,
+            default : 0
+        }
+    }] ,
     options : {
         name : {
             type : String ,

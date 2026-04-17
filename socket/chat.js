@@ -3,6 +3,10 @@ import Chat from "../models/Chat.js";
 import MessageGroup from "../models/MessageGroup.js";
 import GroupChat from "../models/GroupChat.js" ;
 
+// Track recently processed mark-as-read events to prevent duplicates
+const recentlyProcessed = new Map(); // { "userId:friendId": timestamp }
+const DEBOUNCE_TIME = 5000; // 5 seconds - don't process same pair twice within this time
+
 
 
 const addMessageToChat = (io , socket) => {
@@ -38,6 +42,8 @@ const addMessageToChat = (io , socket) => {
 
             await newMessage.save() ;
             chat.messages.push(newMessage._id)
+            chat.lastMessage = newMessage._id
+            chat.lastMessageAt = new Date()
             await chat.save() ;
         } catch (error) {
            console.log(error) ;
@@ -70,6 +76,8 @@ const addMessageToGroupChat = (io , socket) => {
             }
             await newMessage.save() ;
             chat.messages.push(newMessage._id) ;
+            chat.lastMessage = newMessage._id
+            chat.lastMessageAt = new Date()
             await chat.save() ;
         } catch (error) {
             console.log(error) ;
@@ -77,4 +85,118 @@ const addMessageToGroupChat = (io , socket) => {
     })
 }
 
-export {addMessageToChat , addMessageToGroupChat} ;
+const handleMarkAsRead = (io, socket) => {
+    socket.on('chat:mark-as-read', async (data) => {
+        const userId = socket.userId;
+        const friendId = data?.friendId;
+
+        // Validate that we have both userId and friendId
+        if (!userId || !friendId) {
+            return;
+        }
+
+        // Create a key for this user-friend pair
+        const key = `${userId}:${friendId}`;
+        const now = Date.now();
+        const lastProcessed = recentlyProcessed.get(key);
+
+        // If we've processed this pair recently, skip it
+        if (lastProcessed && (now - lastProcessed) < DEBOUNCE_TIME) {
+            return;
+        }
+
+        // Update the last processed time
+        recentlyProcessed.set(key, now);
+
+        try {
+            // Mark messages as read in the database
+            await Message.updateMany(
+                {
+                    reciverId: userId,
+                    senderId: friendId,
+                    isRead: false
+                },
+                {
+                    isRead: true,
+                    readAt: new Date()
+                }
+            );
+
+            // Notify the friend that messages have been read
+            io.to(`user:${friendId}`).emit('chat:messages-read', {
+                readBy: userId,
+                friendId: friendId,
+                readAt: new Date()
+            });
+        } catch (error) {
+            // Silent fail to prevent log spam
+        }
+    });
+}
+
+const handleMarkAsReadGroup = (io, socket) => {
+    socket.on('group:mark-as-read', async (data) => {
+        const userId = socket.userId;
+        const chatId = data?.chatId;
+
+        // Validate that we have both userId and chatId
+        if (!userId || !chatId) {
+            return;
+        }
+
+        // Create a key for this user-chat pair
+        const key = `${userId}:${chatId}`;
+        const now = Date.now();
+        const lastProcessed = recentlyProcessed.get(key);
+
+        // If we've processed this pair recently, skip it
+        if (lastProcessed && (now - lastProcessed) < DEBOUNCE_TIME) {
+            return;
+        }
+
+        // Update the last processed time
+        recentlyProcessed.set(key, now);
+
+        try {
+            // Get the group chat to find its messages
+            const groupChat = await GroupChat.findById(chatId);
+            if (!groupChat) {
+                return;
+            }
+
+            // Mark all unread messages in this group chat as read for this user
+            await MessageGroup.updateMany(
+                {
+                    _id: { $in: groupChat.messages },
+                    readBy: { $not: { $elemMatch: { userId: userId } } }
+                },
+                {
+                    $push: {
+                        readBy: {
+                            userId: userId,
+                            readAt: new Date()
+                        }
+                    }
+                }
+            );
+
+            // Update participant unreadCount in GroupChat
+            const participant = groupChat.participants?.find(p => p.userId.toString() === userId);
+            if (participant) {
+                participant.unreadCount = 0;
+                await groupChat.save();
+            }
+
+            // Notify all users in the group that messages have been read
+            io.to(`chat:${chatId}`).emit('group:messages-read', {
+                readBy: userId,
+                chatId: chatId,
+                readAt: new Date()
+            });
+        } catch (error) {
+            // Silent fail to prevent log spam
+        }
+    });
+}
+
+export {addMessageToChat , addMessageToGroupChat, handleMarkAsRead, handleMarkAsReadGroup} ;

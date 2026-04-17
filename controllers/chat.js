@@ -14,7 +14,6 @@ const getPrivateChat = async (req , res , next) => {
     const userId = req.user.id ;
     const friendId = new ObjectId(req.params.friendId)  ;
 
-
     try {
         const user = await User.findById(userId) ;
         if (!user) {
@@ -30,13 +29,47 @@ const getPrivateChat = async (req , res , next) => {
             $expr: { $eq: [{ $size: "$users" }, 2] }
         }).populate("messages");
 
+        // Mark all unread messages as read
+        if (chat) {
+            await Message.updateMany(
+                { 
+                    reciverId: userId,
+                    senderId: friendId,
+                    isRead: false 
+                },
+                { 
+                    isRead: true,
+                    readAt: new Date()
+                }
+            );
+
+            // Update unread count in participants
+            const userParticipant = chat.participants?.find(p => p.userId.toString() === userId);
+            if (userParticipant) {
+                userParticipant.unreadCount = 0;
+            }
+
+            await chat.save();
+        }
+
+        // Get unread count for this conversation (should be 0 now, but just in case)
+        const unreadCount = await Message.countDocuments({
+            reciverId: userId,
+            senderId: friendId,
+            isRead: false
+        });
+
         // we need both the chat and the friend data in the frontend
         // since we have to show the name and the pfp
 
-        return res.status(200).json({chat : chat , friend : {
-            profileImage : friend.bio.profileImage ,
-            name : friend.name
-        }});
+        return res.status(200).json({
+            chat : chat,
+            friend : {
+                profileImage : friend.bio.profileImage ,
+                name : friend.name
+            },
+            unreadCount: unreadCount
+        });
 
     } catch (error) {
         return res.status(500).json({message : 'Iternal server error'}) ;
@@ -603,10 +636,183 @@ const uploadVideosPrivate = async (req , res , next) => {
     }
 }
 
+const getUnreadCount = async (req, res, next) => {
+    const userId = req.user.id;
+
+    try {
+        const unreadCount = await Message.countDocuments({
+            reciverId: userId,
+            isRead: false
+        });
+
+        return res.status(200).json({ 
+            totalUnread: unreadCount,
+            unreadMessages: unreadCount 
+        });
+    } catch (error) {
+        console.error('Error in getUnreadCount:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const getGroupChatUnreadCount = async (req, res, next) => {
+    const userId = req.user.id;
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+
+        // Get all group chats for this user
+        const groupChats = await GroupChat.find({ users: userId });
+        
+        let totalUnread = 0;
+        
+        // Count unread messages from all group chats
+        for (const chat of groupChats) {
+            const unreadCount = await MessageGroup.countDocuments({
+                _id: { $in: chat.messages },
+                readBy: { $not: { $elemMatch: { userId: userId } } }
+            });
+            totalUnread += unreadCount;
+        }
+
+        return res.status(200).json({
+            totalUnread: totalUnread,
+            groupChatUnread: totalUnread
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const getGroupChatsWithMetadata = async (req, res, next) => {
+    const userId = req.user.id;
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 12;
+    const skip = (page - 1) * limit;
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+
+        // Get all group chats for this user
+        const groupChats = await GroupChat.find({ users: userId })
+            .populate('lastMessage')
+            .sort({ lastMessageAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // Get metadata for each group chat
+        const groupChatsWithMetadata = await Promise.all(
+            groupChats.map(async (chat) => {
+                // Count unread messages for this user
+                const unreadCount = await MessageGroup.countDocuments({
+                    _id: { $in: chat.messages },
+                    readBy: { $not: { $elemMatch: { userId: userId } } }
+                });
+
+                const lastMessage = chat.lastMessage;
+                
+                return {
+                    chatId: chat._id,
+                    name: chat.options.name,
+                    image: chat.options.image,
+                    unreadCount: unreadCount,
+                    lastMessage: lastMessage ? {
+                        senderId: lastMessage.senderId.toString(),
+                        content: lastMessage.message,
+                        timestamp: lastMessage.createdAt,
+                        type: lastMessage.type
+                    } : null,
+                    lastMessageAt: chat.lastMessageAt,
+                    participantCount: chat.users.length
+                };
+            })
+        );
+
+        const totalChats = await GroupChat.countDocuments({ users: userId });
+        const totalPages = Math.ceil(totalChats / limit);
+
+        return res.status(200).json({
+            total: totalChats,
+            data: groupChatsWithMetadata,
+            page: page,
+            limit: limit,
+            totalPages: totalPages
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+const openGroupChatAndMarkRead = async (req, res, next) => {
+    const userId = req.user.id;
+    const chatId = req.params.chatId;
+
+    try {
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+
+        const groupChat = await GroupChat.findById(chatId).populate('messages');
+        if (!groupChat) {
+            return res.status(400).json({ message: 'Group chat not found' });
+        }
+
+        // Check if user is in this chat
+        if (!groupChat.users.includes(userId)) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+
+        // Mark all unread messages as read for this user
+        await MessageGroup.updateMany(
+            {
+                _id: { $in: groupChat.messages },
+                readBy: { $not: { $elemMatch: { userId: userId } } }
+            },
+            {
+                $push: {
+                    readBy: {
+                        userId: userId,
+                        readAt: new Date()
+                    }
+                }
+            }
+        );
+
+        // Update participant unread count
+        const participant = groupChat.participants?.find(p => p.userId.toString() === userId);
+        if (participant) {
+            participant.unreadCount = 0;
+            await groupChat.save();
+        }
+
+        // Get unread count (should be 0 now)
+        const unreadCount = await MessageGroup.countDocuments({
+            _id: { $in: groupChat.messages },
+            readBy: { $not: { $elemMatch: { userId: userId } } }
+        });
+
+        return res.status(200).json({
+            groupChat: groupChat,
+            groupUsers: groupChat.users,
+            unreadCount: unreadCount
+        });
+    } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
 
 const chat = {getPrivateChat , putMessagePrivateChat , createGroupChat , getPublicGroupChat 
         , addPersonToGroup , getUserGroups , patchGroupDetails , uploadImagesPublic , uploadImagePrivate 
-        , uploadVideosPublic , uploadVideosPrivate 
+        , uploadVideosPublic , uploadVideosPrivate , getUnreadCount , getGroupChatUnreadCount,
+        getGroupChatsWithMetadata, openGroupChatAndMarkRead
     } ;
 
 export default chat ;
