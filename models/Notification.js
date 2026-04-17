@@ -1,41 +1,94 @@
-import mongoose , {Schema , Types} from 'mongoose' ;
+import mongoose, { Schema, Types } from 'mongoose';
 
-/////////////////////////////////////////////////////////
-// started workin on the notifications , might change //
-//////         in the future (probably)       /////////
-//////////////////////////////////////////////////////
+/**
+ * Notification Schema
+ * Individual notification documents for real-time delivery via Socket.io
+ * Stored for persistence and historical retrieval
+ * 
+ * Each notification is a standalone document (not nested array)
+ * This allows for easier querying, pagination, and real-time updates
+ */
 
-// after searching , the notifications of the chat app wouldnt be saved here since it is overkill ,
-// it would be for admin validations , orders , users when they buy your products , 
-// but for chats it will be hanedeled only in the frontend as push notifications in the react app 
-// else then that it still might change in the future 
+const notificationSchema = new Schema(
+  {
+    // User who receives this notification
+    recipientId: {
+      type: Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
+    },
 
+    // Type of notification
+    type: {
+      type: String,
+      required: true,
+      enum: [
+        'product_purchased',
+        'friend_request',
+        'friend_request_accepted',
+        'friend_request_rejected',
+        'seller_request_approved',
+        'seller_request_rejected',
+        'product_approved',
+        'product_flagged',
+        'product_deleted',
+        'order_status_updated',
+        'seller_request_pending',
+        'workshop_created',
+        'workshop_approved',
+        'workshop_rejected'
+      ],
+      index: true
+    },
 
+    // Who/what triggered this notification
+    actor: {
+      userId: {
+        type: Types.ObjectId,
+        ref: 'User'
+      },
+      name: {
+        type: String,
+        required: true
+      },
+      avatar: {
+        type: String // URL to avatar image
+      }
+    },
 
-const notificationModel = new Schema({
-    notifications : [{
-        message : {
-            type : String ,
-            required : true 
-        } ,
-        type : {
-            required : true ,
-            type : String ,
-            enum : ['friend_request' , 'accepted_request']
-        } ,
-        read : {
-            type : Boolean ,
-            required : true ,
-            default : false
-        } ,
-        createdAt : {
-            type : Date ,
-            default : Date.now ,
-            required : true
-        }
-    }]
-})
+    // Type-specific data (flexible object)
+    // Examples:
+    // product_purchased: { orderId, productId, totalPrice, productName }
+    // friend_request: { senderId, senderName }
+    // seller_rejected: { reason }
+    // product_flagged: { productId, productName, reason }
+    data: {
+      type: Schema.Types.Mixed,
+      default: {}
+    },
 
-const Notification = mongoose.model('Notification' , notificationModel) ;
+    // Read status and timestamp
+    read: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
 
-export default Notification ;
+    readAt: {
+      type: Date,
+      default: null
+    }
+  },
+  {
+    timestamps: true // Adds createdAt and updatedAt automatically
+  }
+);
+
+// Composite index for efficient notification queries
+notificationSchema.index({ recipientId: 1, createdAt: -1 });
+notificationSchema.index({ recipientId: 1, read: 1 });
+
+const Notification = mongoose.model('Notification', notificationSchema);
+
+export default Notification;

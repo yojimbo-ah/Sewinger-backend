@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { addMessageToChat , addMessageToGroupChat } from './socket/chat.js';
+import { handleNotifications } from './socket/notifications.js';
 import jwt from 'jsonwebtoken'
 import User from './models/User.js';
 import dotenv from 'dotenv'
@@ -70,6 +71,9 @@ export const initSocket = (server) => {
 
       //this is for public chats handlelling :
       addMessageToGroupChat(io , socket) ;
+
+      // this is for notifications handling (real-time mark as read, delete, etc)
+      handleNotifications(io, socket);
 
       // Broadcast active users count on connection only the adnins listen for this in the frontend
       io.emit('activeUsers', activeUsers.size);

@@ -5,6 +5,8 @@ import cloudinary from "../cloudinary.js";
 import transporter from "../service/emailTransporter.js";
 import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 import { validateProductSubmission } from "../service/huggingface-ai.js";
+import { getIO } from "../socket.js";
+import { createNotification } from "../service/notificationService.js";
 
 const PRODUCTS_PER_PAGE = 12 ;
 
@@ -131,7 +133,7 @@ const PostProduct = async (req , res , next) => {
                 
                 const statusUpdate = validationResult.passed ? 'passed' : 'flagged';
                 
-                await Product.findByIdAndUpdate(
+                const updatedProduct = await Product.findByIdAndUpdate(
                     createdProduct._id,
                     {
                         aiValidationStatus: statusUpdate,
@@ -139,6 +141,26 @@ const PostProduct = async (req , res , next) => {
                     },
                     { new: true }
                 );
+
+                // Send notification if product is flagged
+                if (statusUpdate === 'flagged') {
+                    const io = getIO();
+                    await createNotification(
+                      io,
+                      userId,
+                      'product_flagged',
+                      {
+                        userId: 'system',
+                        name: 'System',
+                        avatar: null
+                      },
+                      {
+                        productId: createdProduct._id,
+                        productName: name,
+                        reason: validationResult.reason
+                      }
+                    );
+                }
             } catch (error) {
                 await Product.findByIdAndUpdate(
                     createdProduct._id,
