@@ -3,6 +3,8 @@ import Order from "../models/Order.js";
 import PDFDocument from 'pdfkit'
 import { orderConfirmation } from "../helperFunctions/emailPages.js";
 import resend from "../service/resend.js";
+import { getIO } from "../socket.js";
+import { createNotification } from "../service/notificationService.js";
 
 
 
@@ -85,6 +87,23 @@ const putOrder = async (req , res , next) => {
         }) ;
         await Promise.all(productUpdatePromises) ;
 
+        // Extract seller info BEFORE clearing cart
+        const sellerMap = new Map();
+        user.cart.items.forEach(item => {
+          if (item.productId.creatorId) {
+            const sellerId = item.productId.creatorId.toString();
+            if (!sellerMap.has(sellerId)) {
+              sellerMap.set(sellerId, []);
+            }
+            sellerMap.get(sellerId).push({
+              productId: item.productId._id,
+              productName: item.productId.name,
+              quantity: item.quantity,
+              price: item.productId.price
+            });
+          }
+        });
+
         user.wallet.balance = currentBalance - totalPrice ;
         user.wallet.balance = Number(user.wallet.balance.toFixed(2)) ;
 
@@ -94,6 +113,28 @@ const putOrder = async (req , res , next) => {
         }
         await user.save() ;
         await order.save()
+
+        // Create notifications for each seller whose products were purchased
+        const io = getIO();
+        for (const [sellerId, products] of sellerMap.entries()) {
+          await createNotification(
+            io,
+            sellerId,
+            'product_purchased',
+            {
+              userId: userId,
+              name: `${user.name.firstName} ${user.name.lastName}`,
+              avatar: user.bio?.profileImage || null
+            },
+            {
+              orderId: order._id,
+              buyerName: `${user.name.firstName} ${user.name.lastName}`,
+              products: products,
+              totalPrice: totalPrice
+            }
+          );
+        }
+
         resend.emails.send({
             from: 'Handlyy <no_reply@handly.tech>',
             to: user.email,

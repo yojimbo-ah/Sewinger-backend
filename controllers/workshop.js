@@ -1,6 +1,8 @@
 import Workshop from "../models/Workshop.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import { getIO } from "../socket.js";
+import { createNotification } from "../service/notificationService.js";
 
 /**
  * GET all workshops with filtering and pagination
@@ -166,6 +168,24 @@ const createWorkshop = async (req, res, next) => {
     // Populate and return
     await workshop.populate('instructor.userId', 'name avatar bio');
     await workshop.populate('createdBy', 'name avatar');
+
+    // Create notification for workshop created
+    const io = getIO();
+    await createNotification(
+      io,
+      userId,
+      'workshop_created',
+      {
+        userId: userId,
+        name: `${user.name.firstName} ${user.name.lastName}`,
+        avatar: user.bio?.profileImage || null
+      },
+      {
+        workshopId: workshop._id,
+        workshopTitle: workshop.title,
+        status: 'awaiting_admin_review'
+      }
+    );
 
     res.status(201).json({
       message: 'Workshop created successfully',
@@ -515,6 +535,25 @@ const validateWorkshop = async (req, res, next) => {
     }
 
     await workshop.save();
+
+    // Send notification to workshop creator
+    const io = getIO();
+    const notificationType = status === 'approved' ? 'workshop_approved' : 'workshop_rejected';
+    await createNotification(
+      io,
+      workshop.createdBy,
+      notificationType,
+      {
+        userId: req.user.id,
+        name: 'Admin',
+        avatar: null
+      },
+      {
+        workshopId: workshop._id,
+        workshopTitle: workshop.title,
+        reason: rejectionReason || null
+      }
+    );
 
     res.json({
       message: `Workshop ${status}`,

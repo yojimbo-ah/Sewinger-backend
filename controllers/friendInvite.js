@@ -1,6 +1,9 @@
 import User from "../models/User.js"
 import { friendRequestSent, friendRequestAccepted, friendRequestDenied } from "../helperFunctions/emailPages.js";
 import Chat from "../models/Chat.js";
+import resend from "../service/resend.js";
+import { getIO } from "../socket.js";
+import { createNotification } from "../service/notificationService.js";
 
 
 const postFriendInvite = async (req , res , next) => {
@@ -45,6 +48,24 @@ const postFriendInvite = async (req , res , next) => {
 
         await user.save() ;
         await friend.save() ;
+        
+        // Create notification for friend request
+        const io = getIO();
+        await createNotification(
+          io,
+          friendId,
+          'friend_request',
+          {
+            userId: userId,
+            name: `${user.name.firstName} ${user.name.lastName}`,
+            avatar: user.bio?.profileImage || null
+          },
+          {
+            senderId: userId,
+            senderName: `${user.name.firstName} ${user.name.lastName}`
+          }
+        );
+
         resend.emails.send({
             from: 'Handlyy <no_reply@handly.tech>',
             to: friend.email,
@@ -181,6 +202,23 @@ const approveFriendInvite = async (req , res , next) => {
             await friend.save() ;
             await newChat.save() ;
             
+            // Create notification for friend request accepted
+            const io = getIO();
+            await createNotification(
+              io,
+              friendId,
+              'friend_request_accepted',
+              {
+                userId: userId,
+                name: `${user.name.firstName} ${user.name.lastName}`,
+                avatar: user.bio?.profileImage || null
+              },
+              {
+                accepterId: userId,
+                accepterName: `${user.name.firstName} ${user.name.lastName}`
+              }
+            );
+            
             resend.emails.send({
                 from: 'Handlyy <no_reply@handly.tech>',
                 to: friend.email,
@@ -192,6 +230,23 @@ const approveFriendInvite = async (req , res , next) => {
         } else if (!approve && had1 && had2) {
             user.friendsRequests.splice(index1 , 1) ;
             friend.friendsRequests.splice(index2 , 1) ;
+
+            // Create notification for friend request rejected
+            const io = getIO();
+            await createNotification(
+              io,
+              friendId,
+              'friend_request_rejected',
+              {
+                userId: userId,
+                name: `${user.name.firstName} ${user.name.lastName}`,
+                avatar: user.bio?.profileImage || null
+              },
+              {
+                rejecterId: userId,
+                rejectorName: `${user.name.firstName} ${user.name.lastName}`
+              }
+            );
 
             resend.emails.send({
                 from: 'Handlyy <no_reply@handly.tech>',

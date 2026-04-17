@@ -4,6 +4,8 @@ import UserWaitSellerConf from "../models/UserWaitSellerConf.js"
 import transporter from "../service/emailTransporter.js"
 import resend from "../service/resend.js"
 import { productDeleted, productVerfied, sellerRequestAccepted } from "../helperFunctions/emailPages.js"
+import { getIO } from "../socket.js";
+import { createNotification } from "../service/notificationService.js";
 
 const adminGetPendingProducts = async (req , res , next) => {
     // Admin verification is handled by verifyAdmin middleware
@@ -82,6 +84,25 @@ const adminPatchProductStatus = async (req , res , next) => {
         }
         product.valid = true ;
         await product.save() ;
+
+        // Create notification for product approved
+        const io = getIO();
+        await createNotification(
+          io,
+          product.creatorId,
+          'product_approved',
+          {
+            userId: req.user.id,
+            name: 'Admin',
+            avatar: null
+          },
+          {
+            productId: product._id,
+            productName: product.name,
+            approvedBy: 'Admin'
+          }
+        );
+
         const data = resend.emails.send({
             from : 'handlyy corp <no_reply@handlyy.tech>' ,
             to : seller.email ,
@@ -110,16 +131,35 @@ const adminDeleteProduct = async (req , res , next) => {
             return res.status(400).json({message : 'Couldnt find the creator of the product'}) ;
         }
 
-        await product.deleteOne() ;
+        await product.deleteOne();
+
+        // Create notification for product deleted
+        const io = getIO();
+        await createNotification(
+          io,
+          product.creatorId,
+          'product_deleted',
+          {
+            userId: req.user.id,
+            name: 'Admin',
+            avatar: null
+          },
+          {
+            productId: product._id,
+            productName: product.name,
+            deletedBy: 'Admin'
+          }
+        );
+
         const data = resend.emails.send({
             from : 'handlyy corp <no_reply@handlyy.tech>' ,
-            to : seller.email ,
+            to : user.email ,
             subject : 'Product deleted' ,
             html : productDeleted(productId)
         })
         return res.status(200).json({message : 'Product deleted succcesffuly'}) ;
     } catch (error) {
-
+        return res.status(500).json({message : 'Internal server error'}) ;
     }
 }
 
@@ -137,18 +177,61 @@ const adminPatchUserPower = async (req , res , next) => {
         if (!request) {
             return res.status(400).json({message : 'Error happened try again'}) ;
         }
+        
         if (!status) {
+            // REJECTION PATH
             await UserWaitSellerConf.deleteMany({userId : userId}) ;
-            console.log('am here') ;
+            
+            // Create notification for seller request rejected
+            const io = getIO();
+            await createNotification(
+              io,
+              userId,
+              'seller_request_rejected',
+              {
+                userId: req.user.id,
+                name: 'Admin',
+                avatar: null
+              },
+              {
+                reason: 'Your seller request was rejected by admin'
+              }
+            );
+
+            resend.emails.send({
+                from: 'Handlyy <no_reply@handly.tech>',
+                to: user.email,
+                subject: 'Seller Request - Decision',
+                html: `Your seller request was reviewed and unfortunately rejected. Please contact support for more information.`
+            });
+
             return res.status(200).json({message : 'Request to be seller has been denied'}) ;
         }
 
+        // APPROVAL PATH
         user.power = 'seller' ;
         await UserWaitSellerConf.deleteMany({userId : userId}) ;
         await user.save() ;
+
+        // Create notification for seller request approved
+        const io = getIO();
+        await createNotification(
+          io,
+          userId,
+          'seller_request_approved',
+          {
+            userId: req.user.id,
+            name: 'Admin',
+            avatar: null
+          },
+          {
+            approvedBy: 'Admin'
+          }
+        );
+
         const data = resend.emails.send({
             from : 'handlyy corp <no_reply@handlyy.tech>' ,
-            to : seller.email ,
+            to : user.email ,
             subject : 'Seller validation' ,
             html :  sellerRequestAccepted(user.name)
         })
