@@ -1,6 +1,7 @@
 import User from "../models/User.js"
 import { friendRequestSent, friendRequestAccepted, friendRequestDenied } from "../helperFunctions/emailPages.js";
 import Chat from "../models/Chat.js";
+import Message from "../models/Message.js";
 import resend from "../service/resend.js";
 import { getIO } from "../socket.js";
 import { createNotification } from "../service/notificationService.js";
@@ -335,21 +336,56 @@ const getUserFriends = async (req , res , next) => {
         const totalFriends = user.friends.length ;
         const totalPages = Math.ceil(totalFriends / limit) ;
 
-        const friends = user.friends.slice(skip, skip + limit).map((friend) => {
-            return {
-                friendId : friend.friendId._id ,
-                name : {
-                    firstName : friend.friendId.name.firstName ,
-                    lastName : friend.friendId.name.lastName
-                } ,
-                profileImage : friend.friendId.bio.profileImage ,
-                email : friend.friendId.email
-            }
-        })
+        // Get friends with unread counts and last messages
+        const friendsWithMetadata = await Promise.all(
+            user.friends.slice(skip, skip + limit).map(async (friend) => {
+                const friendId = friend.friendId._id;
+
+                // Get unread count for this conversation
+                const unreadCount = await Message.countDocuments({
+                    reciverId: userId,
+                    senderId: friendId,
+                    isRead: false
+                });
+
+                // Get last message in conversation
+                const lastMessage = await Message.findOne({
+                    $or: [
+                        { senderId: userId, reciverId: friendId },
+                        { senderId: friendId, reciverId: userId }
+                    ]
+                }).sort({ createdAt: -1 }).select('senderId message createdAt isRead');
+
+                return {
+                    friendId : friendId ,
+                    name : {
+                        firstName : friend.friendId.name.firstName ,
+                        lastName : friend.friendId.name.lastName
+                    } ,
+                    profileImage : friend.friendId.bio.profileImage ,
+                    email : friend.friendId.email,
+                    unreadCount: unreadCount,
+                    lastMessage: lastMessage ? {
+                        senderId: lastMessage.senderId.toString(),
+                        content: lastMessage.message,
+                        timestamp: lastMessage.createdAt,
+                        isRead: lastMessage.isRead
+                    } : null,
+                    lastMessageAt: lastMessage?.createdAt || null
+                }
+            })
+        );
+
+        // Sort by lastMessageAt (most recent first)
+        friendsWithMetadata.sort((a, b) => {
+            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return timeB - timeA;
+        });
 
         return res.status(200).json({
             total : totalFriends ,
-            data : friends ,
+            data : friendsWithMetadata ,
             page : page ,
             limit : limit ,
             totalPages : totalPages

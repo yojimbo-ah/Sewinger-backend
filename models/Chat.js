@@ -16,6 +16,25 @@ const chatSchema = new Schema ({
         ref : 'Message' ,
         default : []
     }] ,
+    lastMessage : {
+        type : Types.ObjectId ,
+        ref : 'Message' ,
+        default : null
+    } ,
+    lastMessageAt : {
+        type : Date ,
+        default : null
+    } ,
+    participants : [{
+        userId : {
+            type : Types.ObjectId ,
+            ref : 'User'
+        } ,
+        unreadCount : {
+            type : Number ,
+            default : 0
+        }
+    }] ,
     ChatImage : {
         type : String ,
         required : true ,

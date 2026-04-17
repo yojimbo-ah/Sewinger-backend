@@ -10,6 +10,10 @@ const IMAGE_COUNT = 10 ;
 const VIDEO_COUNT = 3 ;
 
 chatRouter.get('/private/:friendId' , verifyJWT , chat.getPrivateChat) ;
+chatRouter.get('/unread-count' , verifyJWT , chat.getUnreadCount) ;
+chatRouter.get('/public/unread-count' , verifyJWT , chat.getGroupChatUnreadCount) ;
+chatRouter.get('/public' , verifyJWT , chat.getGroupChatsWithMetadata) ;
+chatRouter.get('/public/:chatId' , verifyJWT , chat.openGroupChatAndMarkRead) ;
 chatRouter.put('/message/public' , verifyJWT , upload.single('image') , chat.createGroupChat) ;
 chatRouter.put('/message/public/add' , verifyJWT , chat.addPersonToGroup) ;
 chatRouter.get('/public/:chatId' , verifyJWT , chat.getPublicGroupChat )

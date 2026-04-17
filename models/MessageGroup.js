@@ -15,8 +15,18 @@ const messageGroupSchema = new Schema ({
         required : true ,
         enum : ['text' , 'image' , 'video'] ,
         default : 'text'
-    }
-})
+    } ,
+    readBy : [{
+        userId : {
+            type : Types.ObjectId ,
+            ref : 'User'
+        } ,
+        readAt : {
+            type : Date ,
+            default : Date.now
+        }
+    }]
+} , {timestamps : true})
 
 const MessageGroup = mongoose.model('MessageGroup' , messageGroupSchema) ;
 
