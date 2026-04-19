@@ -26,9 +26,19 @@ const getNotifications = async (req, res, next) => {
       unreadOnly
     );
 
+    // Transform _id to id for frontend consistency with socket emissions
+    const transformedData = {
+      ...notificationData,
+      notifications: notificationData.notifications.map(notification => ({
+        ...notification,
+        id: notification._id,
+        _id: undefined // Remove _id to avoid confusion
+      }))
+    };
+
     return res.status(200).json({
       message: 'Notifications fetched successfully',
-      data: notificationData
+      data: transformedData
     });
 
   } catch (error) {
@@ -119,10 +129,17 @@ const getNotificationsByType = async (req, res, next) => {
 
     const pages = Math.ceil(total / limit);
 
+    // Transform _id to id for frontend consistency
+    const transformedNotifications = notifications.map(notification => ({
+      ...notification,
+      id: notification._id,
+      _id: undefined
+    }));
+
     return res.status(200).json({
       message: 'Notifications fetched successfully',
       data: {
-        notifications,
+        notifications: transformedNotifications,
         total,
         page,
         pages,
