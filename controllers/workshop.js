@@ -41,12 +41,34 @@ const getWorkshops = async (req, res, next) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     // Fetch workshops
-    const workshops = await Workshop.find(filter)
-      .populate('instructor.userId', 'name avatar bio')
-      .populate('createdBy', 'name avatar')
+    let workshops = await Workshop.find(filter)
+      .populate('instructor.userId')
+      .populate('createdBy')
       .sort({ publishedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
+
+    // Transform instructor data and remove userId
+    workshops = workshops.map(workshop => {
+      const workshopObj = workshop.toObject();
+      if (workshopObj.instructor?.userId) {
+        const user = workshopObj.instructor.userId;
+        workshopObj.instructor = {
+          _id: user._id,
+          name: `${user.name?.firstName || ''} ${user.name?.lastName || ''}`.trim(),
+          avatar: user.bio?.profileImage || null,
+          bio: null
+        };
+      }
+      if (workshopObj.createdBy) {
+        workshopObj.createdBy = {
+          _id: workshopObj.createdBy._id,
+          name: `${workshopObj.createdBy.name?.firstName || ''} ${workshopObj.createdBy.name?.lastName || ''}`.trim(),
+          avatar: workshopObj.createdBy.bio?.profileImage || null
+        };
+      }
+      return workshopObj;
+    });
 
     // Get total count for pagination
     const total = await Workshop.countDocuments(filter);
@@ -80,15 +102,46 @@ const getWorkshopDetail = async (req, res, next) => {
       ],
       valid: true
     })
-      .populate('instructor.userId', 'name avatar bio email')
-      .populate('createdBy', 'name avatar')
-      .populate('applications.userId', 'name avatar email');
+      .populate('instructor.userId')
+      .populate('createdBy')
+      .populate('applications.userId');
 
     if (!workshop) {
       return res.status(404).json({ message: 'Workshop not found' });
     }
 
-    res.json(workshop);
+    // Convert to plain object and transform instructor data
+    const workshopObj = workshop.toObject();
+    if (workshopObj.instructor?.userId) {
+      const user = workshopObj.instructor.userId;
+      workshopObj.instructor = {
+        _id: user._id,
+        name: `${user.name?.firstName || ''} ${user.name?.lastName || ''}`.trim(),
+        avatar: user.bio?.profileImage || null,
+        bio: null,
+        email: user.email
+      };
+    }
+    if (workshopObj.createdBy) {
+      workshopObj.createdBy = {
+        _id: workshopObj.createdBy._id,
+        name: `${workshopObj.createdBy.name?.firstName || ''} ${workshopObj.createdBy.name?.lastName || ''}`.trim(),
+        avatar: workshopObj.createdBy.bio?.profileImage || null
+      };
+    }
+    if (workshopObj.applications) {
+      workshopObj.applications = workshopObj.applications.map(app => ({
+        ...app,
+        userId: {
+          _id: app.userId._id,
+          name: `${app.userId.name?.firstName || ''} ${app.userId.name?.lastName || ''}`.trim(),
+          avatar: app.userId.bio?.profileImage || null,
+          email: app.userId.email
+        }
+      }));
+    }
+
+    res.json(workshopObj);
   } catch (error) {
     next(error);
   }
@@ -152,9 +205,9 @@ const createWorkshop = async (req, res, next) => {
       resources: resources || [],
       agenda: agenda || [],
       instructor: {
-        name: user.name,
-        bio: user.bio || null,
-        avatar: user.avatar || null,
+        name: `${user.name.firstName} ${user.name.lastName}`,
+        bio: null,
+        avatar: user.bio?.profileImage || null,
         userId: userId
       },
       applicationRequired: applicationRequired || false,
@@ -166,8 +219,27 @@ const createWorkshop = async (req, res, next) => {
     await workshop.save();
 
     // Populate and return
-    await workshop.populate('instructor.userId', 'name avatar bio');
-    await workshop.populate('createdBy', 'name avatar');
+    await workshop.populate('instructor.userId');
+    await workshop.populate('createdBy');
+
+    // Transform instructor data and remove userId
+    const workshopObj = workshop.toObject();
+    if (workshopObj.instructor?.userId) {
+      const user = workshopObj.instructor.userId;
+      workshopObj.instructor = {
+        _id: user._id,
+        name: `${user.name?.firstName || ''} ${user.name?.lastName || ''}`.trim(),
+        avatar: user.bio?.profileImage || null,
+        bio: null
+      };
+    }
+    if (workshopObj.createdBy) {
+      workshopObj.createdBy = {
+        _id: workshopObj.createdBy._id,
+        name: `${workshopObj.createdBy.name?.firstName || ''} ${workshopObj.createdBy.name?.lastName || ''}`.trim(),
+        avatar: workshopObj.createdBy.bio?.profileImage || null
+      };
+    }
 
     // Create notification for workshop created
     const io = getIO();
@@ -189,7 +261,7 @@ const createWorkshop = async (req, res, next) => {
 
     res.status(201).json({
       message: 'Workshop created successfully',
-      workshop
+      workshop: workshopObj
     });
   } catch (error) {
     next(error);
@@ -240,12 +312,31 @@ const updateWorkshop = async (req, res, next) => {
     workshop.lastModifiedBy = userId;
     await workshop.save();
 
-    await workshop.populate('instructor.userId', 'name avatar bio');
-    await workshop.populate('createdBy', 'name avatar');
+    await workshop.populate('instructor.userId');
+    await workshop.populate('createdBy');
+
+    // Transform instructor data and remove userId
+    const workshopObj = workshop.toObject();
+    if (workshopObj.instructor?.userId) {
+      const user = workshopObj.instructor.userId;
+      workshopObj.instructor = {
+        _id: user._id,
+        name: `${user.name?.firstName || ''} ${user.name?.lastName || ''}`.trim(),
+        avatar: user.bio?.profileImage || null,
+        bio: null
+      };
+    }
+    if (workshopObj.createdBy) {
+      workshopObj.createdBy = {
+        _id: workshopObj.createdBy._id,
+        name: `${workshopObj.createdBy.name?.firstName || ''} ${workshopObj.createdBy.name?.lastName || ''}`.trim(),
+        avatar: workshopObj.createdBy.bio?.profileImage || null
+      };
+    }
 
     res.json({
       message: 'Workshop updated successfully',
-      workshop
+      workshop: workshopObj
     });
   } catch (error) {
     next(error);
@@ -477,12 +568,35 @@ const getPendingWorkshops = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const workshops = await Workshop.find({ validationStatus: 'pending' })
+    let workshops = await Workshop.find({ validationStatus: 'pending' })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .populate('createdBy', 'name avatar email')
-      .populate('instructor.userId', 'name avatar');
+      .populate('createdBy')
+      .populate('instructor.userId');
+
+    // Transform instructor and createdBy data
+    workshops = workshops.map(workshop => {
+      const workshopObj = workshop.toObject();
+      if (workshopObj.instructor?.userId) {
+        const user = workshopObj.instructor.userId;
+        workshopObj.instructor = {
+          _id: user._id,
+          name: `${user.name?.firstName || ''} ${user.name?.lastName || ''}`.trim(),
+          avatar: user.bio?.profileImage || null,
+          bio: null
+        };
+      }
+      if (workshopObj.createdBy) {
+        workshopObj.createdBy = {
+          _id: workshopObj.createdBy._id,
+          name: `${workshopObj.createdBy.name?.firstName || ''} ${workshopObj.createdBy.name?.lastName || ''}`.trim(),
+          avatar: workshopObj.createdBy.bio?.profileImage || null,
+          email: workshopObj.createdBy.email
+        };
+      }
+      return workshopObj;
+    });
 
     const total = await Workshop.countDocuments({ validationStatus: 'pending' });
 
