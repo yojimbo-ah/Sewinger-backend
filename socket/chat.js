@@ -6,6 +6,17 @@ import GroupChat from "../models/GroupChat.js" ;
 // Track recently processed mark-as-read events to prevent duplicates
 const recentlyProcessed = new Map(); // { "userId:friendId": timestamp }
 const DEBOUNCE_TIME = 5000; // 5 seconds - don't process same pair twice within this time
+const CLEANUP_INTERVAL = 60000; // Clean up old entries every 60 seconds
+
+// Periodically clean up old entries to prevent memory leak
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, timestamp] of recentlyProcessed.entries()) {
+        if (now - timestamp > DEBOUNCE_TIME * 2) {
+            recentlyProcessed.delete(key);
+        }
+    }
+}, CLEANUP_INTERVAL);
 
 
 
@@ -17,15 +28,24 @@ const addMessageToChat = (io , socket) => {
         const friendId = data.friendId ;
         const message = data.message ;
 
+        console.log('[Backend Socket] send_message received')
+        console.log('[Backend Socket] From:', userId, 'To:', friendId)
+        console.log('[Backend Socket] Message:', message)
+
         try {
             const newMessage = new Message({
                 senderId : userId ,
                 reciverId : friendId ,
                 message : message
             })
+            
+            console.log('[Backend Socket] ✅ New message created:', newMessage._id)
+            console.log('[Backend Socket] 🔊 Emitting to room: user:' + friendId)
+            
             // this section here will emit the newMessage that we created
-            // 
             io.to(`user:${friendId}`).emit('receive_message', newMessage._doc)
+            console.log('[Backend Socket] ✅ Event emitted to user:' + friendId)
+            
             // we dont wait to save the message then we publish , we publish
             // back then we save since we dont want to wait the database response
             // because it might take a lot of time to response (yes it may cause error)
@@ -37,7 +57,7 @@ const addMessageToChat = (io , socket) => {
             })
 
             if (!chat) {
-                console.log('Couldnt find chat') ;
+                console.log('[Backend Socket] ⚠️ Couldnt find chat') ;
             }
 
             await newMessage.save() ;
@@ -45,8 +65,9 @@ const addMessageToChat = (io , socket) => {
             chat.lastMessage = newMessage._id
             chat.lastMessageAt = new Date()
             await chat.save() ;
+            console.log('[Backend Socket] ✅ Message saved to database')
         } catch (error) {
-           console.log(error) ;
+           console.log('[Backend Socket] ❌ ERROR:', error) ;
         }
     })
 }
@@ -129,7 +150,7 @@ const handleMarkAsRead = (io, socket) => {
                 readAt: new Date()
             });
         } catch (error) {
-            // Silent fail to prevent log spam
+            console.error('Error marking private messages as read:', error);
         }
     });
 }
@@ -194,7 +215,7 @@ const handleMarkAsReadGroup = (io, socket) => {
                 readAt: new Date()
             });
         } catch (error) {
-            // Silent fail to prevent log spam
+            console.error('Error marking group messages as read:', error);
         }
     });
 }

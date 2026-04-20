@@ -44,6 +44,8 @@ export const initSocket = (server) => {
   io.on('connection', async (socket) => {
     try {
       const userId = socket.userId ;
+      console.log('[Socket Connection] User socket connecting. User ID:', userId);
+      
       const user = await User.findById(userId) ;
       if (!user) {
         throw new Error('Couldnt find user with similair data') ;
@@ -51,18 +53,21 @@ export const initSocket = (server) => {
 
       // Add user to active users set
       activeUsers.add(userId);
-      console.log('User connected. Active users:', activeUsers.size, 'User ID:', userId);
+      console.log('[Socket Connection] ✅ User connected. Active users:', activeUsers.size, 'User ID:', userId);
 
       // connecting the user to his private chat so he can get private messages directly to his id
       // and might use it in the future for notification systems and stuff like that since it would be great
       // and it the best and easiest method for real time updating for rest api app
       socket.join(`user:${userId}`)
+      console.log('[Socket Connection] ✅ User joined room: user:' + userId);
 
       // joining every group chat on login so the user can get messages from all the groups he has joined
       // this will make it easier to send messages and i dont need to join when the user access the chat 
       // since the user will be already in the room with all the other active users
+      console.log('[Socket Connection] Joining', user.groupChats.length, 'group chats...');
       user.groupChats.map(group => {
         socket.join(`chat:${group}`) ;
+        console.log('[Socket Connection] ✅ User joined room: chat:' + group);
       })
 
 
