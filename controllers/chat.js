@@ -143,6 +143,7 @@ const createGroupChat = async (req , res , next) => {
         const newGroup = new GroupChat({
             messages : [] ,
             users : [userId , ...friendGroups ] ,
+            lastMessageAt: new Date(),
             options : {
                 name : name ,
                 image : response.secure_url ,
@@ -152,12 +153,15 @@ const createGroupChat = async (req , res , next) => {
 
         user.groupChats.push(newGroup._id) ;
 
-        friendGroups.forEach(async (friendId) => {
+        const friendPromises = friendGroups.map(async (friendId) => {
             const friend = await User.findById(friendId) ;
-            friend.groupChats.push(newGroup._id) ;
-            await friend.save()
+            if (friend) {
+                friend.groupChats.push(newGroup._id) ;
+                await friend.save() ;
+            }
         })
 
+        await Promise.all(friendPromises) ;
         await user.save() ;
         await newGroup.save() ;
         return res.status(200).json({message : 'Group had been created succefully'}) ;
@@ -700,9 +704,10 @@ const getGroupChatsWithMetadata = async (req, res, next) => {
         }
 
         // Get all group chats for this user
+        // Sort by lastMessageAt DESC (newest first), but use createdAt as fallback for groups with no messages
         const groupChats = await GroupChat.find({ users: userId })
             .populate('lastMessage')
-            .sort({ lastMessageAt: -1 })
+            .sort({ lastMessageAt: -1, createdAt: -1 })
             .skip(skip)
             .limit(limit);
 
@@ -745,6 +750,7 @@ const getGroupChatsWithMetadata = async (req, res, next) => {
             totalPages: totalPages
         });
     } catch (error) {
+        console.error('Error fetching group chats:', error);
         return res.status(500).json({ message: 'Internal server error' });
     }
 }
