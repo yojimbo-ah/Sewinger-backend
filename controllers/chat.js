@@ -649,9 +649,10 @@ const getUnreadCount = async (req, res, next) => {
             isRead: false
         });
 
+        console.log('[Backend] getUnreadCount for user', userId, ':', unreadCount);
+
         return res.status(200).json({ 
-            totalUnread: unreadCount,
-            unreadMessages: unreadCount 
+            unreadCount: unreadCount
         });
     } catch (error) {
         console.error('Error in getUnreadCount:', error);
@@ -682,11 +683,13 @@ const getGroupChatUnreadCount = async (req, res, next) => {
             totalUnread += unreadCount;
         }
 
+        console.log('[Backend] getGroupChatUnreadCount for user', userId, ':', totalUnread);
+
         return res.status(200).json({
-            totalUnread: totalUnread,
-            groupChatUnread: totalUnread
+            unreadCount: totalUnread
         });
     } catch (error) {
+        console.error('Error in getGroupChatUnreadCount:', error);
         return res.status(500).json({ message: 'Internal server error' });
     }
 }

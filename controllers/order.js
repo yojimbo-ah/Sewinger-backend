@@ -171,72 +171,281 @@ const getOrderInvoice = async (req , res , next) => {
             return res.status(400).json({message : 'You cant get the invoice since you dont own the order'}) ;
         }
 
-        // PDFDocument library helps us generate documents on the fly with the data we want
-        // i used so users can retrieve there invoices it is not complicated to use or
-        // anything like that , pretty good documentation on the web (ai really helps
-        // with these kinda stuff )        
-        const doc = new PDFDocument();
+        // Ensure all numeric values are proper numbers
+        const totalPrice = Number(order.order.totalPrice) || 0;
+        if (isNaN(totalPrice)) {
+            throw new Error('Invalid order total price: ' + order.order.totalPrice);
+        }
+
+        const doc = new PDFDocument({ size: 'A4', margin: 35 });
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', 'attachment; filename="document.pdf"');
+        res.setHeader('Content-Disposition', `attachment; filename="invoice-${order._id}.pdf"`);
         doc.pipe(res);
 
-        doc.fontSize(24).text('Invoice', { underline: true });
-        doc.moveDown();
-        doc.fontSize(10).text(`Name: ${user.name.lastName} ${user.name.firstName}`);
-        doc.moveDown();
-        doc.fontSize(10).text(`Order id: ${order._id}`);
-        doc.moveDown();
-        doc.fontSize(10).text(`Today's date: ${new Date().toLocaleDateString()}`);
-        doc.moveDown(3);
+        // ════════════════════════════════════════════════════════════
+        // TOP ACCENT BAR
+        // ════════════════════════════════════════════════════════════
+        doc.rect(0, 0, 700, 6).fill('#EB8556');
 
-        const itemNameX = 50;
-        const quantityX = 200;
-        const priceX = 300;
-        const totalX = 400;
+        // ════════════════════════════════════════════════════════════
+        // HEADER SECTION - Logo and Company Name
+        // ════════════════════════════════════════════════════════════
+        
+        const logoPath = 'c:/Users/PC/Desktop/tailwind-learning/src/assets/logo2.png';
+        try {
+            doc.image(logoPath, 35, 12, { width: 60 });
+        } catch (err) {
+            console.log('[Invoice] Logo not found, skipping');
+        }
 
-        doc.font('Helvetica-Bold');
-        const headerY = doc.y; 
-        doc.text('Item Name', itemNameX, headerY);
-        doc.text('Quantity', quantityX, headerY);
-        doc.text('Price', priceX, headerY);
-        doc.text('Total', totalX, headerY);
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#333333').text('HANDLYY', 105, 25);
+        doc.fontSize(9).font('Helvetica').fillColor('#8B6B55').text('Professional Tailoring & Fashion', 105, 42);
+        
+        // Decorative line
+        doc.strokeColor('#D4C4B8').lineWidth(1);
+        doc.moveTo(35, 65).lineTo(560, 65).stroke();
 
-        doc.moveDown();
-        const lineY = doc.y;
-        doc.moveTo(itemNameX, lineY)
-        .lineTo(totalX + 50, lineY)
-        .stroke();
+        // ════════════════════════════════════════════════════════════
+        // HEADER RIGHT SECTION - Invoice Number and Dates
+        // ════════════════════════════════════════════════════════════
+        
+        const invoiceNumber = order._id.toString().slice(-8).toUpperCase();
+        const invoiceDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const orderDate = new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        
+        doc.fontSize(16).font('Helvetica-Bold').fillColor('#8B6B55').text('INVOICE', 35, 72);
+        
+        // Invoice details box on right - Enhanced styling
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#fff');
+        const detailsBoxY = 72;
+        const boxWidth = 180;
+        const boxHeight = 55;
+        
+        doc.rect(560 - boxWidth, detailsBoxY, boxWidth, boxHeight).stroke('#8B6B55').lineWidth(2);
+        doc.rect(560 - boxWidth, detailsBoxY, boxWidth, 18).fill('#EB8556');
+        
+        doc.text('INVOICE DETAILS', 560 - boxWidth + 10, detailsBoxY + 3);
+        
+        doc.fontSize(7.5).font('Helvetica').fillColor('#333');
+        doc.text(`Invoice Number: ${invoiceNumber}`, 560 - boxWidth + 10, detailsBoxY + 23);
+        doc.text(`Invoice Date: ${invoiceDate}`, 560 - boxWidth + 10, detailsBoxY + 35);
+        doc.text(`Order Date: ${orderDate}`, 560 - boxWidth + 10, detailsBoxY + 47);
 
-        doc.moveDown();
+        doc.moveDown(4.5);
 
-        doc.font('Helvetica');
-        order.order.items.forEach(product => {
-            const total = product.priceWhenBought * product.quantity;
-            const currentY = doc.y; 
+        // ════════════════════════════════════════════════════════════
+        // CUSTOMER INFORMATION SECTION
+        // ════════════════════════════════════════════════════════════
+        
+        const custInfoY = doc.y;
+        const col1X = 35;
+        const col2X = 315;
+        
+        // Bill To
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#EB8556').text('BILL TO', col1X, custInfoY);
+        doc.fontSize(7.5).font('Helvetica').fillColor('#333');
+        doc.text(`Name: ${user.name.firstName} ${user.name.lastName}`, col1X, custInfoY + 15);
+        doc.text(`Email: ${user.email}`, col1X, custInfoY + 26);
+        doc.text(`User ID: ${userId}`, col1X, custInfoY + 37);
+
+        // Ship To
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#EB8556').text('SHIP TO', col2X, custInfoY);
+        doc.fontSize(7.5).font('Helvetica').fillColor('#333');
+        doc.text(`Name: ${user.name.firstName} ${user.name.lastName}`, col2X, custInfoY + 15);
+        doc.text(`Email: ${user.email}`, col2X, custInfoY + 26);
+        doc.text(`Member Since: ${new Date(user.createdAt).toLocaleDateString()}`, col2X, custInfoY + 37);
+
+        // Separator line
+        doc.strokeColor('#D4C4B8').lineWidth(1);
+        doc.moveTo(35, custInfoY + 48).lineTo(560, custInfoY + 48).stroke();
+
+        doc.moveDown(4);
+
+        // ════════════════════════════════════════════════════════════
+        // ITEMS TABLE SECTION
+        // ════════════════════════════════════════════════════════════
+
+        const tableTop = doc.y;
+        const col1X_Table = 35;
+        const col2X_Table = 340;
+        const col3X_Table = 420;
+        const col4X_Table = 485;
+        const tableWidth = 530;
+
+        // Table Header
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#fff');
+        doc.rect(col1X_Table, tableTop, tableWidth, 22).fill('#8B6B55').stroke('#8B6B55').lineWidth(2);
+        
+        doc.text('ITEM DESCRIPTION', col1X_Table + 10, tableTop + 6, { width: 295 });
+        doc.text('QTY', col2X_Table + 10, tableTop + 6, { width: 60, align: 'center' });
+        doc.text('UNIT PRICE', col3X_Table + 8, tableTop + 6, { width: 50, align: 'center' });
+        doc.text('TOTAL', col4X_Table + 10, tableTop + 6, { width: 50, align: 'right' });
+
+        // Column separator lines in header
+        doc.strokeColor('#6D5A47').lineWidth(1);
+        doc.moveTo(col2X_Table, tableTop).lineTo(col2X_Table, tableTop + 22).stroke();
+        doc.moveTo(col3X_Table, tableTop).lineTo(col3X_Table, tableTop + 22).stroke();
+        doc.moveTo(col4X_Table, tableTop).lineTo(col4X_Table, tableTop + 22).stroke();
+
+        let rowY = tableTop + 22;
+        const rowHeight = 22;
+        let subtotal = 0;
+        let itemCount = 0;
+
+        doc.fontSize(7.5).font('Helvetica').fillColor('#333');
+        
+        order.order.items.forEach((product, index) => {
+            const quantity = Number(product.quantity) || 0;
+            const price = Number(product.priceWhenBought) || 0;
+            const itemTotal = price * quantity;
+            subtotal += itemTotal;
+            itemCount++;
+
+            if (isNaN(itemTotal)) {
+                console.warn('[Invoice] Invalid product calculation', product);
+                return;
+            }
+
+            // Alternate row background color with borders
+            if (index % 2 === 0) {
+                doc.rect(col1X_Table, rowY, tableWidth, rowHeight).fill('#f4f0ed');
+            } else {
+                doc.rect(col1X_Table, rowY, tableWidth, rowHeight).fill('#fefdfb');
+            }
             
-            doc.text(`${product.name}`, itemNameX, currentY);
-            doc.text(`${product.quantity}`, quantityX, currentY);
-            doc.text(`$${product.priceWhenBought.toFixed(2)}`, priceX, currentY);
-            doc.text(`$${total.toFixed(2)}`, totalX, currentY);
-            
-            doc.moveDown(1.5); 
+            // Row border
+            doc.strokeColor('#D4C4B8').lineWidth(0.5);
+            doc.rect(col1X_Table, rowY, tableWidth, rowHeight).stroke();
+
+            // Vertical column divider lines
+            doc.strokeColor('#D4C4B8').lineWidth(0.5);
+            doc.moveTo(col2X_Table, rowY).lineTo(col2X_Table, rowY + rowHeight).stroke();
+            doc.moveTo(col3X_Table, rowY).lineTo(col3X_Table, rowY + rowHeight).stroke();
+            doc.moveTo(col4X_Table, rowY).lineTo(col4X_Table, rowY + rowHeight).stroke();
+
+            // Content with proper alignment
+            doc.fontSize(7).fillColor('#333').font('Helvetica');
+            doc.text(`${product.name}`, col1X_Table + 10, rowY + 7, { width: 295 });
+            doc.text(`${quantity}`, col2X_Table + 10, rowY + 7, { width: 60, align: 'center' });
+            doc.text(`$${price.toFixed(2)}`, col3X_Table + 8, rowY + 7, { width: 50, align: 'center' });
+            doc.text(`$${itemTotal.toFixed(2)}`, col4X_Table + 10, rowY + 7, { width: 50, align: 'right' });
+
+            rowY += rowHeight;
         });
 
-        doc.moveDown(2);
-        doc.moveTo(itemNameX, doc.y)
-        .lineTo(totalX + 50, doc.y)
-        .stroke();
+        // Bottom border
+        doc.strokeColor('#8B6B55').lineWidth(2);
+        doc.moveTo(col1X_Table, rowY).lineTo(col1X_Table + tableWidth, rowY).stroke();
 
-        doc.moveDown();
-        doc.font('Helvetica-Bold');
-        doc.fontSize(12);
-        doc.text(`Total Price of the Order: $${order.order.totalPrice.toFixed(2)}`, itemNameX);
+        doc.moveDown(2.5);
+
+        // ════════════════════════════════════════════════════════════
+        // FINANCIAL SUMMARY SECTION
+        // ════════════════════════════════════════════════════════════
+
+        const summaryY = doc.y;
+        const labelX = 360;
+        const valueX = 555;
+
+        if (isNaN(subtotal)) {
+            subtotal = 0;
+        }
+
+        // Summary box background
+        doc.rect(360, summaryY - 5, 205, 100).fill('#f9f7f4').stroke('#D4C4B8');
+
+        // Summary lines
+        doc.fontSize(8).font('Helvetica').fillColor('#666');
+        doc.text('Subtotal:', labelX + 10, summaryY);
+        doc.font('Helvetica-Bold').fillColor('#333');
+        doc.text(`$${subtotal.toFixed(2)}`, valueX - 60, summaryY, { align: 'right', width: 55 });
+
+        doc.font('Helvetica').fillColor('#666');
+        doc.text('Tax (0%):', labelX + 10, summaryY + 14);
+        doc.font('Helvetica-Bold').fillColor('#333');
+        doc.text('$0.00', valueX - 60, summaryY + 14, { align: 'right', width: 55 });
+
+        doc.font('Helvetica').fillColor('#666');
+        doc.text('Shipping:', labelX + 10, summaryY + 28);
+        doc.font('Helvetica-Bold').fillColor('#333');
+        doc.text('$0.00', valueX - 60, summaryY + 28, { align: 'right', width: 55 });
+
+        // Divider line
+        doc.strokeColor('#D4C4B8').lineWidth(1);
+        doc.moveTo(370, summaryY + 42).lineTo(545, summaryY + 42).stroke();
+
+        // Total Due Box - Professional styling
+        const totalBoxY = summaryY + 48;
+        doc.rect(360, totalBoxY, 205, 40).fill('#EB8556').stroke('#EB8556').lineWidth(2);
+        
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#fff');
+        doc.text('TOTAL AMOUNT DUE', labelX + 10, totalBoxY + 4);
+        
+        doc.fontSize(20).font('Helvetica-Bold').fillColor('#fff');
+        doc.text(`$${totalPrice.toFixed(2)}`, valueX - 60, totalBoxY + 16, { align: 'right', width: 55 });
+
+        doc.moveDown(5);
+
+        // ════════════════════════════════════════════════════════════
+        // ADDITIONAL INFORMATION SECTION
+        // ════════════════════════════════════════════════════════════
+
+        const additionalY = doc.y;
+
+        // Payment Information Box
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#EB8556').text('Payment Information', 35);
+        doc.fontSize(7).font('Helvetica').fillColor('#333');
+        doc.text(`Method: Digital Wallet`, 35, additionalY + 14);
+        doc.text(`Amount Paid: $${totalPrice.toFixed(2)}`, 35, additionalY + 24);
+        doc.text(`Payment Status: Completed`, 35, additionalY + 34);
+        doc.text(`Payment Date: ${invoiceDate}`, 35, additionalY + 44);
+
+        // Contact Information Box on right
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#EB8556').text('Contact Information', 310);
+        doc.fontSize(7).font('Helvetica').fillColor('#333');
+        doc.text(`Email: support@handlyy.com`, 310, additionalY + 14);
+        doc.text(`Phone: +1 (800) 123-4567`, 310, additionalY + 24);
+        doc.text(`Website: www.handlyy.com`, 310, additionalY + 34);
+        doc.text(`Hours: Monday - Friday, 9AM-6PM EST`, 310, additionalY + 44);
+
+        // Separator line
+        doc.strokeColor('#D4C4B8').lineWidth(1);
+        doc.moveTo(35, additionalY + 58).lineTo(560, additionalY + 58).stroke();
+
+        doc.moveDown(3.5);
+
+        // ════════════════════════════════════════════════════════════
+        // TERMS & CONDITIONS
+        // ════════════════════════════════════════════════════════════
+
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#8B6B55').text('Terms & Conditions:');
+        doc.fontSize(6.5).font('Helvetica').fillColor('#555');
+        doc.text('Thank you for your order with HANDLYY! This invoice is an official proof of purchase and should be retained for your records. All items purchased are subject to our comprehensive return and exchange policy. For any inquiries, disputes, or concerns about your order, please contact our support team at support@handlyy.com within 30 days of this transaction. We guarantee the quality of all our products and services.', { width: 530 });
+
+        doc.moveDown(1.5);
+
+        // ════════════════════════════════════════════════════════════
+        // FOOTER
+        // ════════════════════════════════════════════════════════════
+
+        // Bottom accent bar
+        doc.rect(0, 755, 700, 8).fill('#EB8556');
+
+        doc.fontSize(6.5).fillColor('#8B6B55');
+        doc.text('─'.repeat(115), 35, 766);
+        
+        doc.fontSize(6).fillColor('#7D6652');
+        doc.text('HANDLYY © 2024 - Professional Tailoring & Fashion Services - All Rights Reserved', 35, 774, { align: 'center' });
+        doc.text('www.handlyy.com  |  support@handlyy.com  |  +1 (800) 123-4567', 35, 781, { align: 'center' });
+        doc.text(`Generated: ${new Date().toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })}`, 35, 789, { align: 'center' });
 
         doc.end();
         
     } catch (error) {
-        console.log(error)
-        return res.status(500).json({message : 'Iternal server error'}) ;
+        console.log('[Invoice Error]', error.message);
+        if (!res.headersSent) {
+            return res.status(500).json({message : 'Error generating invoice'});
+        }
     }
 
 }
