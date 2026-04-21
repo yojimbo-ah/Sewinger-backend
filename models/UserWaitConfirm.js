@@ -29,7 +29,7 @@ const userWaitConfirmSchema = new Schema({
     createdAt : {
         type : Date ,
         default : Date.now ,
-        expires : 60 * 15
+        expires : 900
     }
 })
 
