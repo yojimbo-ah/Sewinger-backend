@@ -1,5 +1,6 @@
 import express from "express" ;
 import cors from 'cors'
+import { globalLimiter } from "./middleware/rateLimiters.js";
 // app works like import for other files (index.js and setup.js)
 // why do like this so we dont have looped imported might cause problems
 // in runtime (not interpreting time)
@@ -50,6 +51,9 @@ export const createApp = () => {
   };
 
   app.use(cors(corsOptions));
+  
+  // Apply global rate limiter to all routes
+  app.use(globalLimiter);
 
   // the routes of the app they are well seperated and you can check evry route
   // individually 

@@ -44,8 +44,9 @@ const userSchema = new Schema({
     } ,
     notification : {
         type : Types.ObjectId ,
-        required : true ,
-        ref : 'Notification'
+        required : false ,
+        ref : 'Notification',
+        default : null
     } ,
     password : {
         type : String ,

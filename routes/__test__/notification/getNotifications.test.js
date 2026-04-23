@@ -32,16 +32,17 @@ describe('GET /notification', () => {
     
     expect(response.status).toBe(200);
     expect(response.body).toBeDefined();
-    expect(response.body.notification).toBeDefined();
+    expect(response.body.data).toBeDefined();
+    expect(response.body.data.notifications).toBeDefined();
   });
 
-  it('should have notification object with _id', async () => {
+  it('should have notification array in response', async () => {
     const response = await api(app)
       .get('/notification')
       .set('Authorization', `Bearer ${clientToken}`);
     
     expect(response.status).toBe(200);
-    expect(response.body.notification._id).toBeDefined();
+    expect(Array.isArray(response.body.data.notifications)).toBe(true);
   });
 
   it('should return 400 when not authenticated (missing token)', async () => {

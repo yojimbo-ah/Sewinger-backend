@@ -76,11 +76,7 @@ global.createAccountsTobeUsed = async () => {
   try {
     const hashedPassword = await bcrypt.hash('hello123', SALT_ROUNDS);
     
-    // Create notification for each user first
-    const adminNotif = await Notification.create({});
-    const sellerNotif = await Notification.create({});
-    const clientNotif = await Notification.create({});
-    
+    // Create users first without notifications
     const userAdmin = new User({
       name : {
         firstName : 'admin' ,
@@ -88,8 +84,7 @@ global.createAccountsTobeUsed = async () => {
       } ,
       email : 'admin@test.com' ,
       password : hashedPassword ,
-      power : 'admin' ,
-      notification : adminNotif._id
+      power : 'admin'
     });
     
     const userSeller = new User({
@@ -99,8 +94,7 @@ global.createAccountsTobeUsed = async () => {
       } ,
       email : 'seller@test.com' ,
       password : hashedPassword ,
-      power : 'seller' ,
-      notification : sellerNotif._id
+      power : 'seller'
     });
     
     const userClient = new User({
@@ -110,13 +104,43 @@ global.createAccountsTobeUsed = async () => {
       } ,
       email : 'client@test.com' ,
       password : hashedPassword ,
-      power : 'client' ,
-      notification : clientNotif._id
+      power : 'client'
     });
 
     await userAdmin.save();
     await userClient.save();
     await userSeller.save();
+    
+    // Create notifications for each user after they have IDs
+    await Notification.create({
+      recipientId: userAdmin._id,
+      type: 'seller_request_pending',
+      actor: {
+        name: 'System',
+        avatar: null
+      },
+      data: {}
+    });
+
+    await Notification.create({
+      recipientId: userSeller._id,
+      type: 'seller_request_pending',
+      actor: {
+        name: 'System',
+        avatar: null
+      },
+      data: {}
+    });
+
+    await Notification.create({
+      recipientId: userClient._id,
+      type: 'seller_request_pending',
+      actor: {
+        name: 'System',
+        avatar: null
+      },
+      data: {}
+    });
     
     return {
       admin: userAdmin,

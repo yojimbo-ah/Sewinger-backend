@@ -3,11 +3,12 @@ import { verifyJWT } from '../middleware/verifyJWT.js'
 import products from '../controllers/product.js';
 import { upload } from '../middleware/upload.js';
 import { cloudinaryErrorHandler } from '../controllers/errorHandlers.js';
+import { productCreationLimiter } from '../middleware/rateLimiters.js';
 const productRouter = express.Router() ;
 
 const IMAGES_COUNT = 4 ;
 
-productRouter.post('/create' , verifyJWT , upload.array("images", IMAGES_COUNT) ,
+productRouter.post('/create' , verifyJWT , productCreationLimiter , upload.array("images", IMAGES_COUNT) ,
     products.PostProduct , cloudinaryErrorHandler) ;
 productRouter.get('/normal' , products.getProducts);
 productRouter.get('/user/:valid' , verifyJWT , products.getUserProducts) ;

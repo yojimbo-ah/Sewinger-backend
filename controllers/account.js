@@ -1,7 +1,6 @@
 import User from '../models/User.js';
 import UserWaitConfirm from '../models/UserWaitConfirm.js';
 import UserWaitSellerConf from '../models/UserWaitSellerConf.js';
-import Notification from '../models/Notification.js';
 import { Reset } from '../models/Reset.js' ;
 import validator from 'validator'
 import bcrypt from 'bcrypt'
@@ -273,11 +272,6 @@ const signup = async (req , res , next) => {
             return res.status(409).json({errors : errors});
         }
 
-        // creating the notification first since i need the Id :
-        const notification = new Notification({
-            notifications : []
-        }) ;
-
         const hashedPassword = await bcrypt.hash(password , 12);
         const token = crypto.randomBytes(20).toString("hex");
 
@@ -322,28 +316,23 @@ const SignupVer = async (req , res , next) => {
     
     const status = !!req.body.status ;
     const token = req.params.token
+    
     try {
         const awaitingAccount = await UserWaitConfirm.findOne({token : token}) ;
-        console.log(awaitingAccount)
+        
         if (!awaitingAccount) {
             return res.status(400).json({message : 'invalid token , couldnt verify account'}) ;
         }
         if (status) {
-            const notification = new Notification({
-                notifications : []
-            }) 
-
             const user  = new User({
                 email : awaitingAccount.email ,
                 name : {
                     firstName : awaitingAccount.name.firstName ,
                     lastName : awaitingAccount.name.lastName
                 } ,
-                password : awaitingAccount.password ,
-                notification : notification._id
+                password : awaitingAccount.password
             }) ;
 
-            await notification.save() ;
             await user.save() ;
             await awaitingAccount.deleteOne() ;
             return res.status(200).json({messgae : 'Account created , welcome to Sewinger'}) ;
