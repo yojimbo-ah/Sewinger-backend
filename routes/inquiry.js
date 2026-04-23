@@ -9,11 +9,12 @@ import {
   getProductInquiries
 } from '../controllers/inquiry.js';
 import { verifyJWT } from '../middleware/verifyJWT.js';
+import { inquiryCreationLimiter } from '../middleware/rateLimiters.js';
 
 const router = express.Router();
 
 // Create new inquiry (buyer)
-router.post('/', verifyJWT, createInquiry);
+router.post('/', verifyJWT, inquiryCreationLimiter, createInquiry);
 
 // Get buyer's inquiries
 router.get('/buyer/list', verifyJWT, getBuyerInquiries);

@@ -188,10 +188,135 @@ const getUserWhoBoughtMyProduct = async (req , res , next) => {
 
 }
 
+const getAllSellerAnalytics = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // Verify user is seller/admin
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
+    if (user.power !== 'seller' && user.power !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Get all seller's products
+    const products = await Product.find({ creatorId: userId });
+
+    if (products.length === 0) {
+      return res.json({
+        success: true,
+        analytics: {
+          overview: {
+            totalProducts: 0,
+            totalRevenue: 0,
+            totalUnitsSold: 0,
+            totalBuyers: 0,
+            averageRevenuePerProduct: 0
+          },
+          inquiries: {
+            total: 0,
+            open: 0,
+            resolved: 0,
+            closed: 0
+          },
+          products: []
+        }
+      });
+    }
+
+    let aggregatedRevenue = 0;
+    let aggregatedUnitsSold = 0;
+    const allBuyerIds = new Set();
+    const productAnalytics = [];
+    let totalInquiries = 0;
+    let openInquiries = 0;
+    let resolvedInquiries = 0;
+    let closedInquiries = 0;
+
+    // Process each product
+    for (const product of products) {
+      // Get orders for this product
+      const orders = await Order.find({
+        'order.items.itemId': product._id.toString()
+      }).populate('ownerId', 'name email bio.profileImage');
+
+      let productRevenue = 0;
+      let productUnitsSold = 0;
+      const productBuyerIds = new Set();
+
+      orders.forEach(order => {
+        order.order.items.forEach(item => {
+          if (item.itemId.toString() === product._id.toString()) {
+            productRevenue += item.priceWhenBought * item.quantity;
+            productUnitsSold += item.quantity;
+            productBuyerIds.add(order.ownerId._id.toString());
+            allBuyerIds.add(order.ownerId._id.toString());
+          }
+        });
+      });
+
+      // Get inquiries for this product
+      const inquiries = await ProductInquiry.find({
+        productId: product._id,
+        sellerId: userId
+      });
+
+      const openCount = inquiries.filter(i => i.status === 'open').length;
+      const resolvedCount = inquiries.filter(i => i.status === 'resolved').length;
+      const closedCount = inquiries.filter(i => i.status === 'closed').length;
+
+      totalInquiries += inquiries.length;
+      openInquiries += openCount;
+      resolvedInquiries += resolvedCount;
+      closedInquiries += closedCount;
+
+      aggregatedRevenue += productRevenue;
+      aggregatedUnitsSold += productUnitsSold;
+
+      productAnalytics.push({
+        productId: product._id,
+        productName: product.name,
+        productPrice: product.price,
+        productImage: product.images?.mainImage,
+        availableItems: product.availbleItems,
+        revenue: productRevenue,
+        unitsSold: productUnitsSold,
+        buyers: productBuyerIds.size,
+        inquiries: inquiries.length
+      });
+    }
+
+    res.json({
+      success: true,
+      analytics: {
+        overview: {
+          totalProducts: products.length,
+          totalRevenue: aggregatedRevenue.toFixed(2),
+          totalUnitsSold: aggregatedUnitsSold,
+          totalBuyers: allBuyerIds.size,
+          averageRevenuePerProduct: products.length > 0 ? (aggregatedRevenue / products.length).toFixed(2) : 0
+        },
+        inquiries: {
+          total: totalInquiries,
+          open: openInquiries,
+          resolved: resolvedInquiries,
+          closed: closedInquiries
+        },
+        products: productAnalytics.sort((a, b) => b.revenue - a.revenue)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching seller analytics:', error);
+    res.status(500).json({ message: 'Failed to fetch analytics', error: error.message });
+  }
+};
 
 const seller = {
   getProductAnalytics,
   getUsersWhoBoughtMyProduct,
-  getUserWhoBoughtMyProduct
+  getUserWhoBoughtMyProduct,
+  getAllSellerAnalytics
 };
 export default seller ;

@@ -39,7 +39,8 @@ describe('Notification Routes', () => {
 
       expect(response.status).toBe(200);
       expect(response.body).toBeDefined();
-      expect(response.body.notification).toBeDefined();
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.notifications).toBeDefined();
     });
 
     it('should retrieve notification for seller', async () => {
@@ -48,7 +49,8 @@ describe('Notification Routes', () => {
         .set('Authorization', `Bearer ${sellerToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.notification).toBeDefined();
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.notifications).toBeDefined();
     });
 
     it('should retrieve notification for admin', async () => {
@@ -57,7 +59,8 @@ describe('Notification Routes', () => {
         .set('Authorization', `Bearer ${adminToken}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.notification).toBeDefined();
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.notifications).toBeDefined();
     });
 
     it('should have notification document structure', async () => {
@@ -66,9 +69,10 @@ describe('Notification Routes', () => {
         .set('Authorization', `Bearer ${clientToken}`);
 
       expect(response.status).toBe(200);
-      const notification = response.body.notification;
-      expect(notification).toBeDefined();
-      expect(notification._id).toBeDefined();
+      const data = response.body.data;
+      expect(data).toBeDefined();
+      expect(data.notifications).toBeDefined();
+      expect(Array.isArray(data.notifications)).toBe(true);
     });
 
     it('should return 400 when not authenticated', async () => {

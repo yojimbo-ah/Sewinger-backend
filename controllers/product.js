@@ -228,6 +228,11 @@ const getProducts = async (req , res , next) => {
             }
         }
 
+        // Stock filter: only show items in stock (availbleItems > 0)
+        if (req.query.inStock === 'true') {
+            filter.availbleItems = {$gt : 0};
+        }
+
         const [products , totalProducts] = await Promise.all([
             Product.find(filter)
                 .sort({createdAt : -1})

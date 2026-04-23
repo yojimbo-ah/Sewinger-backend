@@ -1,29 +1,28 @@
 // Mock Cloudinary service for testing
-// just some setup for the cloudaniry mock function
-// for more details on why we do that , check the jest 
-// package in npm or the documentation (in short hand 
-// a fake function that our testing files will think
-// it the real api of cloudinary)
+// Simple mock functions that work with Jest's manual mocking
 
-export const mockUpload = jest.fn().mockResolvedValue({
+// Mock upload function
+const mockUpload = async () => ({
   public_id: 'test-public-id-123',
   secure_url: 'https://res.cloudinary.com/test/image/upload/v1234/test-public-id-123.jpg',
   url: 'http://res.cloudinary.com/test/image/upload/v1234/test-public-id-123.jpg',
 });
 
-export const mockUploadStream = jest.fn().mockImplementation((options, callback) => {
+// Mock upload_stream function
+const mockUploadStream = (options, callback) => {
   callback(null, {
     public_id: 'test-public-id-stream-123',
     secure_url: 'https://res.cloudinary.com/test/image/upload/v1234/test-public-id-stream-123.jpg',
     url: 'http://res.cloudinary.com/test/image/upload/v1234/test-public-id-stream-123.jpg',
   });
   return {
-    on: jest.fn().mockReturnThis(),
-    end: jest.fn().mockReturnThis(),
+    on: () => ({ on: () => {}, end: () => {} }),
+    end: () => {},
   };
-});
+};
 
-export const mockDestroy = jest.fn().mockResolvedValue({
+// Mock destroy function
+const mockDestroy = async () => ({
   result: 'ok',
 });
 
@@ -33,7 +32,10 @@ const mockCloudinary = {
     upload_stream: mockUploadStream,
     destroy: mockDestroy,
   },
-  config: jest.fn(),
+  config: () => {},
 };
+
+// Named exports for v2 api
+export const v2 = mockCloudinary;
 
 export default mockCloudinary;
