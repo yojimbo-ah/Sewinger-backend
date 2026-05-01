@@ -1,14 +1,37 @@
 name: Sync to Hugging Face Space
+
 on:
   workflow_dispatch:
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Push to Hugging Face
+
+      - name: Push to Hugging Face (clean)
         env:
           HF_TOKEN: ${{ secrets.WK_TOKEN }}
-        run: git push --force https://islammen:$HF_TOKEN@huggingface.co/spaces/islammen/handly_testing HEAD:main
+        run: |
+          # Configure git
+          git config user.email "deploy-bot@github.com"
+          git config user.name "Deploy Bot"
+
+          # Remove node_modules and images from git tracking (not from disk)
+          git rm -r --cached node_modules/ --ignore-unmatch
+          git rm -r --cached images/ --ignore-unmatch
+
+          # Make sure .gitignore exists and ignores these
+          echo "node_modules/" >> .gitignore
+          echo "images/" >> .gitignore
+
+          # Commit the cleanup
+          git add .gitignore
+          git commit -m "Remove binary files for HF deploy" || echo "Nothing to commit"
+
+          # Now push to Hugging Face
+          git push --force https://islammen:$HF_TOKEN@huggingface.co/spaces/islammen/handly_testing HEAD:main
