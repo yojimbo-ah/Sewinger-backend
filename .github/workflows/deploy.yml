@@ -10,28 +10,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Push to Hugging Face (clean)
+      - name: Push clean copy to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.WK_TOKEN }}
         run: |
-          # Configure git
           git config user.email "deploy-bot@github.com"
           git config user.name "Deploy Bot"
 
-          # Remove node_modules and images from git tracking (not from disk)
-          git rm -r --cached node_modules/ --ignore-unmatch
-          git rm -r --cached images/ --ignore-unmatch
+          # Remove node_modules and images folders completely
+          rm -rf node_modules/
+          rm -rf images/
 
-          # Make sure .gitignore exists and ignores these
+          # Add them to .gitignore
           echo "node_modules/" >> .gitignore
           echo "images/" >> .gitignore
 
-          # Commit the cleanup
-          git add .gitignore
-          git commit -m "Remove binary files for HF deploy" || echo "Nothing to commit"
+          # Create a brand new orphan branch (no history = no binary files)
+          git checkout --orphan hf-deploy
+          git add -A
+          git commit -m "Clean deploy to Hugging Face"
 
-          # Now push to Hugging Face
-          git push --force https://islammen:$HF_TOKEN@huggingface.co/spaces/islammen/handly_testing HEAD:main
+          # Force push this clean branch to HF main
+          git push --force https://islammen:$HF_TOKEN@huggingface.co/spaces/islammen/handly_testing hf-deploy:main
