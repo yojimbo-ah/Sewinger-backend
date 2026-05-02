@@ -348,7 +348,7 @@ const SignupVer = async (req , res , next) => {
 const putUserWaitSellerRequest = async (req , res , next) => {
     const userId = req.user.id ;
     const description  = req.body.description ;
-    const files = req.files ;
+    const files = req.files ; // images , pdfs , etc... 
     const uploadedData = [] ;
     try {
 
@@ -420,6 +420,11 @@ const putUserWaitSellerRequest = async (req , res , next) => {
         res.status(200).json({message : 'request has been sent succussfully'});
         
         // Run AI validation asynchronously AFTER response is sent
+        // as you can see i am sending the request back before we even 
+        // start ai validation , that beceause i dont want the request to 
+        // take a long time being processed and the response is sent back 
+        // to the user directly , the ai validation result the admin 
+        // is the only capable if seeing it 
         Promise.resolve().then(async () => {
             try {
                 const aiResult = await validateSellerDescription(description, handledFilesArray);
@@ -452,6 +457,7 @@ const putUserWaitSellerRequest = async (req , res , next) => {
             }
         }).catch(err => {
             // Silently catch background task errors
+            throw err 
         });
 
     } catch (error) {

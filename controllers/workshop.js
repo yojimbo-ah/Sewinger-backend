@@ -1,8 +1,47 @@
 import Workshop from "../models/Workshop.js";
 import User from "../models/User.js";
 import Order from "../models/Order.js";
+import cloudinary from "../cloudinary.js";
+import extractPublicId from "../helperFunctions/cloudinaryImageId.js";
 import { getIO } from "../socket.js";
 import { createNotification } from "../service/notificationService.js";
+
+const normalizeGallery = (galleryInput) => {
+  if (!galleryInput) {
+    return null;
+  }
+
+  if (Array.isArray(galleryInput)) {
+    return galleryInput;
+  }
+
+  if (typeof galleryInput === 'string') {
+    try {
+      const parsed = JSON.parse(galleryInput);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  return null;
+};
+
+const uploadWorkshopImages = async (files, memorystorage) => {
+  const uploads = files.map(async (file) => {
+    const response = await cloudinary.uploader.upload(
+      `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+      { folder: 'workshop_images' }
+    );
+    memorystorage.push(`workshop_images/${extractPublicId(response.secure_url)}`);
+    return {
+      url: response.secure_url,
+      caption: null
+    };
+  });
+
+  return Promise.all(uploads);
+};
 
 /**
  * GET all workshops with filtering and pagination
@@ -170,6 +209,8 @@ const createWorkshop = async (req, res, next) => {
       applicationRequired
     } = req.body;
 
+    req.memorystorage = [];
+
     // Validate required fields
     if (!title || !slug || !description || !schedule?.startDate || !schedule?.endDate) {
       return res.status(400).json({ 
@@ -189,6 +230,12 @@ const createWorkshop = async (req, res, next) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    const files = Array.isArray(req.files) ? req.files : [];
+    const galleryFromBody = normalizeGallery(gallery);
+    const uploadedGallery = files.length > 0
+      ? await uploadWorkshopImages(files, req.memorystorage)
+      : null;
+
     // Create workshop
     const workshop = new Workshop({
       title,
@@ -197,7 +244,7 @@ const createWorkshop = async (req, res, next) => {
       tags: tags || [],
       description,
       content,
-      gallery: gallery || [],
+      gallery: uploadedGallery ?? galleryFromBody ?? [],
       location,
       schedule,
       price: price || 0,
@@ -277,6 +324,8 @@ const updateWorkshop = async (req, res, next) => {
     const { id } = req.params;
     const updates = req.body;
 
+    req.memorystorage = [];
+
     // Find workshop
     const workshop = await Workshop.findById(id);
     if (!workshop) {
@@ -296,6 +345,15 @@ const updateWorkshop = async (req, res, next) => {
       }
     }
 
+    const files = Array.isArray(req.files) ? req.files : [];
+    const incomingGallery = normalizeGallery(updates.gallery);
+    const hasGalleryField = Object.prototype.hasOwnProperty.call(updates, 'gallery');
+    let uploadedGallery = null;
+
+    if (files.length > 0) {
+      uploadedGallery = await uploadWorkshopImages(files, req.memorystorage);
+    }
+
     // Update allowed fields
     const allowedUpdates = [
       'title', 'slug', 'category', 'tags', 'description', 'content',
@@ -304,10 +362,32 @@ const updateWorkshop = async (req, res, next) => {
     ];
 
     allowedUpdates.forEach(field => {
+      if (field === 'gallery') {
+        return;
+      }
+
       if (updates[field] !== undefined) {
         workshop[field] = updates[field];
       }
     });
+
+    if (uploadedGallery) {
+      const oldGallery = Array.isArray(workshop.gallery) ? workshop.gallery : [];
+      const oldImages = oldGallery
+        .map((item) => item?.url)
+        .filter((url) => typeof url === 'string');
+
+      workshop.gallery = uploadedGallery;
+
+      await Promise.all(
+        oldImages.map(async (image) => {
+          const publicId = extractPublicId(image);
+          await cloudinary.uploader.destroy(`workshop_images/${publicId}`);
+        })
+      );
+    } else if (hasGalleryField) {
+      workshop.gallery = incomingGallery ?? [];
+    }
 
     workshop.lastModifiedBy = userId;
     await workshop.save();

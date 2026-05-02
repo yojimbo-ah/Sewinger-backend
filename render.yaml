@@ -1,3 +1,5 @@
+# am using render just for the testing purposes , the real backend is hosted
+# in the hugging face servers wish better i would say for the free tier
 services:
   - type: web
     name: sewinger-backend
