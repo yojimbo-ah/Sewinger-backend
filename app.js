@@ -53,6 +53,8 @@ export const createApp = () => {
   app.use(cors(corsOptions));
   
   // Apply global rate limiter to all routes
+  // so we dont get Ddos attacked and also 
+  // the backend sevrver i used is not very fast 
   app.use(globalLimiter);
 
   // the routes of the app they are well seperated and you can check evry route
